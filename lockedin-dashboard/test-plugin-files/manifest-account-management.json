@@ -1,0 +1,13 @@
+{
+  "name": "account-management",
+  "version": "1.0.0",
+  "author": "Plugin System",
+  "description": "A plugin that provides user account management functionality",
+  "main": "core-account-management.js",
+  "icon": "icon-account-management.svg",
+  "permissions": ["admin"],
+  "dependencies": [],
+  "tags": ["management", "admin", "users"],
+  "created": "2025-01-01",
+  "updated": "2025-01-01"
+}

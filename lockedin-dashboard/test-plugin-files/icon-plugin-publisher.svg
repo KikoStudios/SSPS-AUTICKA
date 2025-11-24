@@ -1,0 +1,43 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="32" cy="32" r="30" fill="#f8f9fa" stroke="#007bff" stroke-width="2"/>
+  
+  <!-- Plugin/gear icon -->
+  <g transform="translate(32, 32)">
+    <!-- Main gear -->
+    <circle cx="0" cy="0" r="12" fill="#007bff" stroke="#0056b3" stroke-width="1"/>
+    
+    <!-- Gear teeth -->
+    <rect x="-2" y="-18" width="4" height="6" fill="#007bff"/>
+    <rect x="-2" y="12" width="4" height="6" fill="#007bff"/>
+    <rect x="-18" y="-2" width="6" height="4" fill="#007bff"/>
+    <rect x="12" y="-2" width="6" height="4" fill="#007bff"/>
+    
+    <!-- Diagonal teeth -->
+    <rect x="-13" y="-13" width="4" height="4" fill="#007bff" transform="rotate(45)"/>
+    <rect x="9" y="9" width="4" height="4" fill="#007bff" transform="rotate(45)"/>
+    <rect x="9" y="-13" width="4" height="4" fill="#007bff" transform="rotate(-45)"/>
+    <rect x="-13" y="9" width="4" height="4" fill="#007bff" transform="rotate(-45)"/>
+    
+    <!-- Center hole -->
+    <circle cx="0" cy="0" r="4" fill="#ffffff"/>
+  </g>
+  
+  <!-- Upload arrow -->
+  <g transform="translate(32, 8)">
+    <path d="M-8 4 L0 -4 L8 4" stroke="#28a745" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="0" y1="-4" x2="0" y2="8" stroke="#28a745" stroke-width="2" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Code brackets -->
+  <g transform="translate(32, 48)" fill="#6c757d">
+    <text x="-8" y="4" font-family="monospace" font-size="12" font-weight="bold">{</text>
+    <text x="4" y="4" font-family="monospace" font-size="12" font-weight="bold">}</text>
+  </g>
+  
+  <!-- Small dots for decoration -->
+  <circle cx="16" cy="16" r="2" fill="#28a745" opacity="0.7"/>
+  <circle cx="48" cy="16" r="2" fill="#28a745" opacity="0.7"/>
+  <circle cx="16" cy="48" r="2" fill="#28a745" opacity="0.7"/>
+  <circle cx="48" cy="48" r="2" fill="#28a745" opacity="0.7"/>
+</svg>

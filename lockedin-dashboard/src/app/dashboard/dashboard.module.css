@@ -1,0 +1,380 @@
+/* Dashboard Container */
+.dashboardContainer {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--white);
+  font-family: 'JetBrains Mono', monospace;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Sidebar - Dark Blue Background */
+.sidebar {
+  width: 20%;
+  min-width: 240px;
+  background-color: var(--dark-blue);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  position: relative;
+}
+
+/* Logo Container */
+.logoContainer {
+  padding-top: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.logo {
+  background-color: transparent;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.logoLocked {
+  color: var(--white);
+  font-size: 45px;
+  font-weight: 400;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.logoIn {
+  color: var(--grey);
+  font-size: 45px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.logoImage {
+  height: 24px;
+  width: auto;
+  margin-right: 12px;
+}
+
+/* Navigation Area */
+.navigation {
+  flex: 1;
+  padding: 0 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.navSection {
+  margin: 0;
+}
+
+.navSectionTitle {
+  display: none; /* Hide section titles for cleaner look */
+}
+
+.navMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Navigation Items */
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: transparent;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  color: var(--white);
+  text-align: left;
+  width: 100%;
+  min-height: 44px;
+}
+
+.navItem:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Active state for Counter */
+.navItem.active {
+  background-color: var(--white);
+  color: var(--dark-blue);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-weight: 600;
+}
+
+.navIcon {
+  font-size: 36px;
+  width: 42px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navLabel {
+  flex: 1;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+/* Admin Section */
+.adminSection {
+  margin-top: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Management Buttons - Red/Pink Background */
+.managementButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.managementButton {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: var(--red-pink);
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  color: var(--white);
+  text-align: left;
+  width: 100%;
+  min-height: 44px;
+  font-weight: 500;
+}
+
+.managementButton:hover {
+  background-color: #c42d27;
+  transform: translateY(-1px);
+}
+
+.managementButton.active {
+  background-color: #c42d27;
+  box-shadow: 0 4px 12px rgba(220, 54, 46, 0.3);
+}
+
+.managementIcon {
+  font-size: 36px;
+  width: 42px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.managementLabel {
+  flex: 1;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+/* Admin Button - Grey Background */
+.adminButton {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: var(--grey);
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  color: var(--white);
+  text-align: left;
+  width: 100%;
+  min-height: 44px;
+  font-weight: 500;
+}
+
+.adminButton:hover {
+  background-color: #5f677a;
+  transform: translateY(-1px);
+}
+
+.adminButton.active {
+  background-color: #5f677a;
+  box-shadow: 0 4px 12px rgba(112, 123, 144, 0.3);
+}
+
+.adminIcon {
+  font-size: 25px;
+  width: 28px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.adminLabel {
+  flex: 1;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.logoutIcon {
+  font-size: 20px;
+  width: 28px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Main Content Area */
+.mainContent {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 16px;
+  background-color: var(--dark-blue);
+  overflow: hidden;
+}
+
+.contentContainer {
+  width: 100%;
+  height: 100%;
+  background-color: var(--white);
+  overflow-y: auto;
+  border: 2px solid var(--dark-blue);
+  border-radius: 16px;
+  box-sizing: border-box;
+}
+
+/* Content Placeholder */
+.modulePlaceholder {
+  background-color: var(--white);
+  border-radius: 16px;
+  padding: 60px 80px;
+  text-align: center;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 800px;
+}
+
+.moduleTitle {
+  font-size: 48px;
+  font-weight: bold;
+  color: var(--dark-blue);
+  margin: 0;
+  letter-spacing: 2px;
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+}
+
+.welcomeSubtitle {
+  font-size: 24px;
+  font-weight: normal;
+  color: var(--grey);
+  margin: 20px 0;
+  letter-spacing: 1px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.userInfo {
+  margin-top: 30px;
+  text-align: left;
+  font-size: 16px;
+  color: var(--grey);
+  line-height: 1.6;
+}
+
+.userInfo p {
+  margin: 10px 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.userInfo strong {
+  color: var(--dark-blue);
+  font-weight: bold;
+}
+
+/* Emergency Admin Menu - Hidden in new design */
+.emergencyMenu {
+  display: none;
+}
+
+/* User Section - Hidden in new design */
+.userSection {
+  display: none;
+}
+
+.userBadge {
+  display: none;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dashboardContainer {
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+  }
+  
+  .sidebar {
+    width: 100%;
+    min-width: auto;
+    height: auto;
+  }
+  
+  .logoContainer {
+    padding: 15px;
+  }
+  
+  .navigation {
+    padding: 0 15px;
+  }
+  
+  .adminSection {
+    padding: 15px;
+  }
+  
+  .modulePlaceholder {
+    padding: 40px 20px;
+    min-height: 300px;
+  }
+  
+  .moduleTitle {
+    font-size: 32px;
+  }
+  
+  .welcomeSubtitle {
+    font-size: 18px;
+  }
+  
+  .userInfo {
+    font-size: 14px;
+  }
+}

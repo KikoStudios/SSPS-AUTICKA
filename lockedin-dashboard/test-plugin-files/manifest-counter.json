@@ -1,0 +1,13 @@
+{
+  "name": "counter",
+  "version": "1.0.0",
+  "author": "KAO",
+  "description": "A simple counter plugin with Hello World message",
+  "main": "core-counter.js",
+  "icon": "icon-counter.svg",
+  "permissions": ["read", "write"],
+  "dependencies": [],
+  "tags": ["counter", "demo", "ui"],
+  "created": "2024-01-01",
+  "updated": "2024-01-01"
+}

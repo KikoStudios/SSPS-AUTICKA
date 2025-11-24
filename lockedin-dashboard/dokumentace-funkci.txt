@@ -1,0 +1,63 @@
+DOKUMENTACE FUNKCÍ - PROJEKT LOCKEDIN
+========================================
+
+OBJECTIVE (deadline: prosinec)
+------------------------------
+- Počítání autíček + místa pro autíčka
+- Detekce autíček pomocí kamer
+- Pushování dat na server
+- Unified UI (plugin integratable)
+
+KOMPONENTY SYSTÉMU
+------------------
+
+1. KAMERA
+- Funkce: Zachytávání video streamu pro detekci vozidel
+- Výstup: Video feed pro analýzu
+- Integrace: Připojení k detekčnímu modulu
+
+2. SERVER
+- Funkce: Zpracování a ukládání dat z detekce
+- API: RESTful rozhraní pro komunikaci s UI
+- Databáze: Ukládání počtů vozidel a parkovacích míst
+- Real-time: Push notifikace pro aktualizace UI
+
+3. PYTHON MODUL
+- Funkce: Hlavní detekční engine
+- Technologie: OpenCV, YOLO/TensorFlow pro detekci objektů
+- Výstup: Koordináty detekovaných vozidel + klasifikace
+- Komunikace: HTTP POST na server endpoint
+
+4. DETEKCE AUTÍČEK
+- Vstup: Video stream z kamery
+- Algoritmus: Computer vision pro identifikaci vozidel
+- Výstup: JSON s daty o detekovaných vozidlech
+- Přesnost: Minimalizace false positives
+
+5. UNIFIED UI (PLUGIN INTEGRATABLE)
+- Komponenta: React/Next.js plugin
+- Funkce: Zobrazení počtu vozidel v reálném čase
+- Integrace: Modulární systém pro snadné rozšíření
+- Dashboard: Přehled parkovacích míst a obsazenosti
+
+WORKFLOW
+--------
+1. Kamera → zachytí video stream
+2. Python modul → analyzuje stream a detekuje vozidla
+3. Server → přijme data a uloží do databáze
+4. UI plugin → zobrazí aktualizované informace uživateli
+
+TECHNICKÉ POŽADAVKY
+-------------------
+- Real-time zpracování (max. 30s latence)
+- Škálovatelnost pro více kamer
+- Offline režim s lokálním ukládáním
+- RESTful API pro externí integrace
+- Responsive design pro různé zařízení
+
+INTEGRAČNÍ BODY
+---------------
+- Plugin API pro snadné rozšíření funkcionalit
+- Webhook systém pro externí notifikace
+- Export dat (CSV, JSON) pro reporting
+- Konfigurační rozhraní pro nastavení detekce

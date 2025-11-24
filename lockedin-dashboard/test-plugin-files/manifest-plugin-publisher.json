@@ -1,0 +1,13 @@
+{
+  "name": "plugin-publisher",
+  "version": "1.0.0",
+  "author": "Plugin System",
+  "description": "A plugin that provides plugin publisher/editor functionality as a plugin itself",
+  "main": "core-plugin-publisher.js",
+  "icon": "icon-plugin-publisher.svg",
+  "permissions": ["read", "write", "admin"],
+  "dependencies": [],
+  "tags": ["publisher", "editor", "plugin-management", "meta"],
+  "created": "2024-01-01",
+  "updated": "2024-01-01"
+}

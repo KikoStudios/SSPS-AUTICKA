@@ -1,0 +1,182 @@
+/* Login Page Styles */
+.loginContainer {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #0F2044;
+  font-family: 'JetBrains Mono', monospace;
+  position: relative;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* SSPS Logo in top left corner */
+.logoContainer {
+  position: absolute;
+  top: 2rem;
+  left: 2rem;
+  z-index: 10;
+}
+
+.sspsLogo {
+  height: 60px;
+  width: auto;
+  filter: brightness(0) invert(1); /* Make it white */
+}
+
+/* Main Login Card */
+.loginCard {
+  background-color: #FFFFFF;
+  border: 12px solid #DC362E;
+  border-radius: 32px;
+  padding: 1rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  margin: 4rem 2rem;
+}
+
+/* LockedIN Logo in the card */
+.lockedinLogoContainer {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.6rem;
+}
+
+.lockedinLogo {
+  height: 64px;
+  width: auto;
+}
+
+/* Form */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+/* Error Message */
+.errorMessage {
+  background-color: #FEE2E2;
+  color: #DC2626;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: 1px solid #FECACA;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Input Groups */
+.inputGroup {
+  text-align: left;
+}
+
+.input {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  background-color: #FFFFFF;
+  border: 2px solid #0F2044;
+  border-radius: 12px;
+  color: #0F2044;
+  font-size: 0.9rem;
+  font-family: 'JetBrains Mono', monospace;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.input::placeholder {
+  color: #0F2044;
+  font-weight: 400;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #0F2044;
+  box-shadow: 0 0 0 3px rgba(15, 32, 68, 0.1);
+  background-color: #FFFFFF;
+}
+
+.input:disabled {
+  background-color: #F3F4F6;
+  color: #9CA3AF;
+  cursor: not-allowed;
+}
+
+/* Login Button */
+.loginButton {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  background-color: #DC362E;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'JetBrains Mono', monospace;
+  margin-top: 0.4rem;
+}
+
+.loginButton:hover:not(:disabled) {
+  background-color: #c42d27;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(220, 54, 46, 0.3);
+}
+
+.loginButton:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.loginButton:disabled {
+  background: #9CA3AF;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.loginButton:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(220, 54, 46, 0.2);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .loginContainer {
+    padding: 0;
+  }
+  
+  .loginCard {
+    padding: 1.6rem;
+    max-width: 100%;
+    margin: 2rem 1rem;
+  }
+  
+  .sspsLogo {
+    height: 50px;
+  }
+  
+  .lockedinLogo {
+    height: 48px;
+  }
+}
+
+@media (max-width: 480px) {
+  .loginCard {
+    padding: 1.2rem;
+    margin: 1rem 0.5rem;
+  }
+  
+  .input {
+    padding: 0.7rem 0.8rem;
+  }
+  
+  .loginButton {
+    padding: 0.7rem 0.8rem;
+  }
+}
