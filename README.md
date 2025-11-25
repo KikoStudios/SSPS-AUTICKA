@@ -51,5 +51,5 @@ spousteni databaze serveru a frontendu na jednom pocitaci jednoduse
 - [ ] docker
 - [ ] integrace serveru db a frontendu(buildleho)
 
-##DOATEK 
+## DOATEK 
 vec v listu splnite tim ze v - [ ] napisete x takze - [x]
