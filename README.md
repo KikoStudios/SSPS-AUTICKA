@@ -37,14 +37,16 @@ Overall veci
 Akceptování dat z backendu a dynamicke zobrazování modulů
 
 ### Funkce
-- [*] Definice databaze
+- [ ] Definice databaze
 - [ ] Convex integrace pro synchronizaci 
-- [ ] Funkce 3
+- [ ] Fixnout convex x module data brige
+- [ ] loadovant moduly na loginu
+- [ ] fixnout to ze se profilr ozbije kdyz editne svoje vlastni moduly
+- [ ] pridat dev roli
 
 ## Sub-projekt 4 — CLI Runtime
-Krátký popis sub-projektu.
+spousteni databaze serveru a frontendu na jednom pocitaci jednoduse 
 
 ### Funkce
-- [ ] Funkce 1  
-- [ ] Funkce 2  
-- [ ] F
+- [ ] docker
+- [ ] integrace serveru db a frontendu(buildleho)
