@@ -2,6 +2,7 @@
 Software na monitorovaní spz, a small scale parkovist.
 
 ## Contributing Guidelines
+- pls použivejte tohle https://gist.github.com/pmutua/7008c22908f89eb8bd21b36e4f92b04f (rikal ucitel)
 - Vždy vytvořte branch a jako skupina pracujte jen v něm
 - jednou za čas funkční verze mergneme
 - 👍
@@ -23,6 +24,7 @@ mapuje detekuje a indexuje, prakovací místa a předává je databázi
 
 ## Sub-projekt 3 — Python Brige
 brige je proprietary python modul k predávaní informací mezi Detekcí a Databází/backendem
+Stará verze https://github.com/KikoStudios/old-python-brige
 
 ### Funkce
 - [ ] Možnost synchonizace manualne do specifickych polí databáze
