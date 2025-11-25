@@ -36,9 +36,9 @@ Overall veci
 ## Sub-projekt 4 — Dashboard Backend
 Akceptování dat z backendu a dynamicke zobrazování modulů
 
-### Funkce        ##NEDOPSANO
-- [ ] Definice databaze
-- [ ] 
+### Funkce
+- [*] Definice databaze
+- [ ] Convex integrace pro synchronizaci 
 - [ ] Funkce 3
 
 ## Sub-projekt 4 — CLI Runtime
