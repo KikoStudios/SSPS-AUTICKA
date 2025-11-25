@@ -37,8 +37,8 @@ Overall veci
 Akceptování dat z backendu a dynamicke zobrazování modulů
 
 ### Funkce
-- [ ] Definice databaze
-- [ ] Convex integrace pro synchronizaci 
+- [x] Definice databaze
+- [x] Convex integrace pro synchronizaci 
 - [ ] Fixnout convex x module data brige
 - [ ] loadovant moduly na loginu
 - [ ] fixnout to ze se profilr ozbije kdyz editne svoje vlastni moduly
