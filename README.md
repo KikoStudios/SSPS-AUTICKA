@@ -30,7 +30,8 @@ Stará verze https://github.com/KikoStudios/old-python-brige
 - [ ] Možnost synchonizace manualne do specifickych polí databáze
 - [ ] One line na synchronizaci specificky parkovacích míst
 - [ ] Bulk synchronizace parkovacích míst
-## Overall veci
+
+## Overall veci 
 - [ ] SPZ synch auticka.spz(data)
 - [ ] Mista dynch auticka.park(index,state)
 - [ ] autorizace, omezeni pristupu aby nikdo nerozbil db a autorizace jak pro development(je potreba jen url), tak prod(private key)
