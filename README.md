@@ -19,8 +19,8 @@ nwm dopiste si
 mapuje detekuje a indexuje, prakovací místa a předává je databázi
 
 ### Funkce
-- [ ] Mapování 
-- [ ] Live Detekce a Ubdaty  
+- [x] Mapování 
+- [x] Live Detekce a Ubdaty  
 
 ## Sub-projekt 3 — Python Brige
 brige je proprietary python modul k predávaní informací mezi Detekcí a Databází/backendem
