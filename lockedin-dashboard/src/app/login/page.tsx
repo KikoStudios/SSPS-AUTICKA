@@ -7,12 +7,14 @@ import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../auth-context';
 import styles from './login.module.css';
 
+import Image from 'next/image';
+
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
   const router = useRouter();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const loginUser = useAction((api.context as any).loginUserAction);
@@ -39,7 +41,7 @@ export default function LoginPage() {
       if (result.success) {
         // Login successful
         console.log('Login successful:', result);
-        
+
         // Parse user data
         let userData = {};
         try {
@@ -48,10 +50,10 @@ export default function LoginPage() {
           console.error('Error parsing user data:', error);
           userData = { role: 'user' };
         }
-        
+
         // Store user data in auth context
         login(username, userData, result.userId);
-        
+
         // Redirect to dashboard
         router.push('/dashboard');
       } else {
@@ -68,19 +70,19 @@ export default function LoginPage() {
   // Show loading screen while checking authentication
   if (authLoading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
         height: '100vh',
-        fontFamily: 'JetBrains Mono, monospace',
+        fontFamily: "'SF Pro', -apple-system, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif",
         fontSize: '18px',
         color: '#666'
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ 
-            width: '40px', 
-            height: '40px', 
+          <div style={{
+            width: '40px',
+            height: '40px',
             border: '4px solid #f3f3f3',
             borderTop: '4px solid #007bff',
             borderRadius: '50%',
@@ -108,10 +110,13 @@ export default function LoginPage() {
     <div className={styles.loginContainer}>
       {/* SSPS Logo in top left */}
       <div className={styles.logoContainer}>
-        <img 
-          src="/media/logo_ssps.svg" 
-          alt="SSPS Logo" 
+        <Image
+          src="/media/logo_ssps.svg"
+          alt="SSPS Logo"
+          width={318}
+          height={111}
           className={styles.sspsLogo}
+          priority
         />
       </div>
 
@@ -119,10 +124,13 @@ export default function LoginPage() {
       <div className={styles.loginCard}>
         {/* LockedIN Logo */}
         <div className={styles.lockedinLogoContainer}>
-          <img 
-            src="/media/LOGO.svg" 
-            alt="LockedIN Logo" 
+          <Image
+            src="/media/logo-v2.svg"
+            alt="LockedIN Logo"
+            width={718}
+            height={521}
             className={styles.lockedinLogo}
+            priority
           />
         </div>
         <form className={styles.form} onSubmit={handleSubmit}>
