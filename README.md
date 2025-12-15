@@ -25,6 +25,12 @@ mapuje detekuje a indexuje, prakovací místa a předává je databázi
 ## Sub-projekt 3 — Python Brige
 brige je proprietary python modul k predávaní informací mezi Detekcí a Databází/backendem
 Stará verze https://github.com/KikoStudios/old-python-brige
+- [ ] Auth (autentikace spise pozdeji musim dodelat)
+- [ ] Push parkoviste kapacita (jednotlive a bulk)
+- [ ] SPZ History
+- [ ] SPZ In/Out
+- [ ] Workfow HIstory a InOut paraelne
+- [ ] Pull data (pozdejsi) 
 
 ### Funkce
 - [ ] Možnost synchonizace manualne do specifickych polí databáze
