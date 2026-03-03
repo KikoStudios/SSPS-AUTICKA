@@ -1,6 +1,9 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, ReactNode, useMemo } from 'react';
+import { useConvexAuth, useQuery } from 'convex/react';
+import { useAuthActions } from '@convex-dev/auth/react';
+import { api } from '../../convex/_generated/api';
 
 interface UserData {
   role?: string;
@@ -8,6 +11,7 @@ interface UserData {
   permissions?: string[];
   isActive?: boolean;
   plugins?: string; // Comma-separated list of plugin names
+  [key: string]: any;
 }
 
 interface AuthContextType {
@@ -15,103 +19,58 @@ interface AuthContextType {
   username: string | null;
   userData: UserData | null;
   userId: string | null;
-  login: (username: string, userData: UserData, userId: string) => void;
+  login: (username: string, userData: UserData, userId: string) => void; // Deprecated
   logout: () => void;
-  refreshUserData: () => void;
+  refreshUserData: () => void; // No-op with Convex's reactive queries
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [username, setUsername] = useState<string | null>(null);
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
+  const { signOut } = useAuthActions();
 
-  // Load auth state from localStorage on mount with session validation
-  useEffect(() => {
-    const initializeAuth = () => {
-      try {
-        const storedAuth = localStorage.getItem('authData');
-        if (storedAuth) {
-          const authData = JSON.parse(storedAuth);
-          const { username: storedUsername, userData: storedUserData, userId: storedUserId, timestamp } = authData;
-          
-          // Check if session is still valid (24 hours)
-          const sessionAge = Date.now() - (timestamp || 0);
-          const maxAge = 24 * 60 * 60 * 1000; // 24 hours
-          
-          if (sessionAge < maxAge && storedUsername && storedUserId) {
-            setIsAuthenticated(true);
-            setUsername(storedUsername);
-            setUserData(storedUserData);
-            setUserId(storedUserId);
-          } else {
-            // Session expired, clear storage
-            localStorage.removeItem('authData');
-          }
-        }
-      } catch (error) {
-        console.error('Error parsing stored auth data:', error);
-        localStorage.removeItem('authData');
-      } finally {
-        setIsLoading(false);
-      }
+  // Fetch current user data if authenticated
+  const currentUser = useQuery(api.users.currentUser);
+
+  // Create derived state
+  const { username, userId, userData } = useMemo(() => {
+    if (!currentUser) {
+      return { username: null, userId: null, userData: null };
+    }
+
+    const { username, _id, ...rest } = currentUser;
+
+    // Construct userData from the rest of the properties
+    // The currentUser query already parses usrData and spreads it
+    const userDataObj: UserData = {
+      ...rest,
+      // Ensure specific fields are present if needed, or mapped
+      role: rest.role, // Should be present if it was in usrData
     };
 
-    initializeAuth();
-  }, []);
+    return {
+      username: username || 'User',
+      userId: _id,
+      userData: userDataObj
+    };
+  }, [currentUser]);
 
-  const login = (username: string, userData: UserData, userId: string) => {
-    setIsAuthenticated(true);
-    setUsername(username);
-    setUserData(userData);
-    setUserId(userId);
-    
-    // Store in localStorage for persistence with timestamp
-    localStorage.setItem('authData', JSON.stringify({
-      username,
-      userData,
-      userId,
-      timestamp: Date.now()
-    }));
+  const isLoading = isAuthLoading || (isAuthenticated && currentUser === undefined);
+
+  const login = () => {
+    console.warn('AuthContext.login is deprecated. Use Convex Auth instead.');
   };
 
-  const logout = () => {
-    setIsAuthenticated(false);
-    setUsername(null);
-    setUserData(null);
-    setUserId(null);
-    
-    // Clear localStorage
-    localStorage.removeItem('authData');
+  const logout = async () => {
+    await signOut();
+    // Optional: Redirect handled by components or router
   };
 
   const refreshUserData = () => {
-    // Update timestamp and refresh user data from localStorage
-    const storedAuth = localStorage.getItem('authData');
-    if (storedAuth) {
-      try {
-        const authData = JSON.parse(storedAuth);
-        const updatedAuthData = {
-          ...authData,
-          timestamp: Date.now()
-        };
-        localStorage.setItem('authData', JSON.stringify(updatedAuthData));
-        
-        // Update the auth context state with fresh data from localStorage
-        if (authData.userData !== userData) {
-          setUserData(authData.userData);
-        }
-        
-        // Note: Removed automatic dashboard refresh to prevent navigation loops
-        // Dashboard will refresh naturally when userData changes
-      } catch (error) {
-        console.error('Error refreshing user data:', error);
-      }
-    }
+    // Convex queries update automatically, this is a no-op
+    // We could invalidate the query if needed, but usually not necessary
   };
 
   return (

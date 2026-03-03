@@ -13,7 +13,7 @@
 const { ConvexHttpClient } = require("convex/browser");
 
 // Configuration
-const CONVEX_URL = process.env.CONVEX_URL || "https://combative-cat-787.convex.cloud";
+const CONVEX_URL = process.env.CONVEX_URL || "https://modest-pig-521.convex.cloud";
 const ADMIN_USERNAME = "test-usr";
 const ADMIN_PASSWORD = "testtest";
 

@@ -1,6 +1,7 @@
 import { pageRegistry, createPageComponent } from './page-registry';
 import { AdminAccountManagementPage } from './admin-pages';
 import { PluginPublisherPage } from './plugin-publisher';
+import AccountApprovalPage from './pages/admin-account-approval';
 
 // Initialize default pages - these are now only used for emergency tools menu
 // The actual plugins are loaded from Convex database
@@ -11,6 +12,7 @@ export function initializeDefaultPages() {
   // Create emergency-only pages (not added to main navigation)
   const emergencyPages = [
     createPageComponent('admin-accounts', 'Account Management', '👥', AdminAccountManagementPage, ['admin']),
+    createPageComponent('admin-approvals', 'Account Approvals', '✓', AccountApprovalPage, ['admin']),
     createPageComponent('plugin-publisher', 'Plugin Publisher', '🔌', PluginPublisherPage),
   ];
 

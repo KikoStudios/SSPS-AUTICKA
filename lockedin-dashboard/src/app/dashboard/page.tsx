@@ -13,22 +13,22 @@ import styles from './dashboard.module.css';
 // Component to render plugin icons dynamically
 function PluginIcon({ pluginName, fallback }: { pluginName: string, fallback: string }) {
   const iconUrl = useQuery(api.context.getPluginIconUrl, { pluginName });
-  
+
   // Handle specific icon mappings
   const iconMap: Record<string, string> = {
     'counter': '/media/counter.svg',
     'icon-counter': '/media/counter.svg'
   };
-  
+
   // Check if we have a direct mapping
   if (iconMap[pluginName]) {
     return <img src={iconMap[pluginName]} alt={`${pluginName} icon`} style={{ width: '28px', height: '28px' }} />;
   }
-  
+
   if (iconUrl) {
     return <img src={iconUrl} alt={`${pluginName} icon`} style={{ width: '28px', height: '28px' }} />;
   }
-  
+
   return <span>{fallback}</span>;
 }
 
@@ -53,17 +53,50 @@ export default function DashboardPage() {
   const [navItems, setNavItems] = useState<NavigationItem[]>([]);
   const [activePage, setActivePage] = useState<string>('welcome');
   const [pluginsLoaded, setPluginsLoaded] = useState(false);
+  const [authVerified, setAuthVerified] = useState(false);
   // Admin can disable plugins through their own user account management
   // This will be handled through the normal user management interface
+
+  // NEW: Check if user is approved to access dashboard
+  useEffect(() => {
+    // Only check if we have userData loaded
+    if (isAuthenticated && userData !== undefined && userData !== null) {
+      console.log('Dashboard access check:', { 
+        username, 
+        isApproved: userData.isApproved,
+        hasIsApprovedField: 'isApproved' in userData 
+      });
+      
+      // Only block if isApproved is explicitly false
+      if (userData.isApproved === false) {
+        console.warn('Unapproved user attempted to access dashboard:', username);
+        setAuthVerified(false);
+        logout();
+        router.push('/login?error=pending_approval');
+        return;
+      }
+      
+      // User is approved, mark as verified
+      setAuthVerified(true);
+    }
+  }, [isAuthenticated, userData, username, logout, router]);
+
+  // Redirect unauthenticated users to login
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      setAuthVerified(false);
+      router.push('/login');
+    }
+  }, [isAuthenticated, isLoading, router]);
 
   // Parse user's plugin list - memoized to prevent infinite loops
   const userPluginNames = useMemo(() => {
     return userData?.plugins ? userData.plugins.split(',').map((name: string) => name.trim()).filter(Boolean) : [];
   }, [userData?.plugins]);
-  
+
   // Fetch user's plugins from database
   const userPlugins = useQuery(
-    api.context.getPluginsByNames, 
+    api.context.getPluginsByNames,
     userPluginNames.length > 0 ? { pluginNames: userPluginNames } : "skip"
   );
 
@@ -71,18 +104,18 @@ export default function DashboardPage() {
   useEffect(() => {
     if (userPlugins && !pluginsLoaded && userPluginNames.length > 0) {
       console.log('Loading user plugins:', userPlugins);
-      
+
       // Register each plugin as a page component
       userPlugins.forEach((plugin: { name: string, iconFileId?: string }) => {
         // Create a wrapper component for the plugin
         const PluginComponent = ({ username, userData }: { username?: string, userData?: UserData }) => (
-          <PluginLoader 
-            pluginName={plugin.name} 
-            username={username} 
-            userData={userData as Record<string, unknown>} 
+          <PluginLoader
+            pluginName={plugin.name}
+            username={username}
+            userData={userData as Record<string, unknown>}
           />
         );
-        
+
         // Register the plugin as a page with dynamic icon
         const pluginPage = createPageComponent(
           `plugin-${plugin.name}`,
@@ -91,13 +124,22 @@ export default function DashboardPage() {
           PluginComponent,
           [] // No specific permissions required for user's own plugins
         );
-        
+
         registerPage(pluginPage);
       });
-      
+
       setPluginsLoaded(true);
     }
-  }, [userPlugins, userPluginNames, pluginsLoaded]); // Include pluginsLoaded dependency
+  }, [userPlugins, userPluginNames, pluginsLoaded]);
+
+  // Handle case where user has no plugins (set pluginsLoaded to true immediately)
+  useEffect(() => {
+    if (!pluginsLoaded && userData && userPluginNames.length === 0) {
+      // Register default pages immediately since we don't have plugins to wait for
+      initializeAllPages();
+      setPluginsLoaded(true);
+    }
+  }, [pluginsLoaded, userData, userPluginNames]);
 
   // Expose dashboard context to plugins - run only once on mount
   useEffect(() => {
@@ -105,11 +147,11 @@ export default function DashboardPage() {
     if (typeof window !== 'undefined') {
       // Create Convex client for plugins (using dynamic import)
       import('convex/browser').then(({ ConvexHttpClient }) => {
-        (window as unknown as Record<string, unknown>).convexClient = new ConvexHttpClient('https://combative-cat-787.convex.cloud');
+        (window as unknown as Record<string, unknown>).convexClient = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || 'https://modest-pig-521.convex.cloud');
       }).catch(error => {
         console.error('Failed to load Convex client:', error);
       });
-      
+
       // Create a stable refresh function that doesn't cause loops
       const createRefreshFunction = () => {
         return () => {
@@ -118,14 +160,14 @@ export default function DashboardPage() {
             const allItems = getNavigationItems();
             const filteredItems = allItems.filter(item => {
               // Skip emergency/hard-coded pages from main navigation
-              if (item.id === 'admin-accounts' || item.id === 'plugin-publisher') {
+              if (item.id === 'admin-accounts' || item.id === 'plugin-publisher' || item.id === 'admin-approvals') {
                 return false;
               }
-              
+
               // For plugin items (prefixed with 'plugin-'), check if user has access
               if (item.id.startsWith('plugin-')) {
                 const pluginName = item.id.replace('plugin-', '');
-                
+
                 // If user is admin, show all plugins
                 if (userData?.role === 'admin') {
                   return true;
@@ -135,7 +177,7 @@ export default function DashboardPage() {
                   return currentUserPluginNames.includes(pluginName);
                 }
               }
-              
+
               // For non-plugin items, apply permission-based filtering
               if (!item.permissions || item.permissions.length === 0) {
                 return true;
@@ -146,13 +188,13 @@ export default function DashboardPage() {
           }
         };
       };
-      
+
       (window as unknown as Record<string, unknown>).dashboardContext = {
         userData,
         username,
         refreshDashboard: createRefreshFunction()
       };
-      
+
       // Make refresh function globally available
       (window as unknown as Record<string, unknown>).refreshDashboard = createRefreshFunction();
     }
@@ -163,20 +205,20 @@ export default function DashboardPage() {
     if (pluginsLoaded) {
       // Initialize all pages (emergency pages only - not for main navigation)
       initializeAllPages();
-      
+
       // Get navigation items from registry and filter based on user role and plugin assignments
       const allItems = getNavigationItems();
-      
+
       const filteredItems = allItems.filter(item => {
         // Skip emergency/hard-coded pages from main navigation
-        if (item.id === 'admin-accounts' || item.id === 'plugin-publisher') {
+        if (item.id === 'admin-accounts' || item.id === 'plugin-publisher' || item.id === 'admin-approvals') {
           return false;
         }
-        
+
         // For plugin items (prefixed with 'plugin-'), check if user has access
         if (item.id.startsWith('plugin-')) {
           const pluginName = item.id.replace('plugin-', '');
-          
+
           // If user is admin, show all plugins by default
           if (userData?.role === 'admin') {
             return true;
@@ -185,42 +227,47 @@ export default function DashboardPage() {
             return userPluginNames.includes(pluginName);
           }
         }
-        
+
         // No default items to check for duplicates anymore
-        
+
         // For other non-plugin items, apply permission-based filtering
         if (!item.permissions || item.permissions.length === 0) {
           return true;
         }
-        
+
         return userData?.role === 'admin';
       });
-      
+
       setNavItems(filteredItems);
     }
   }, [pluginsLoaded, userData?.role, userPluginNames]); // Include all dependencies
 
   // Auto-select first available page when navigation items change - prevent loops
   useEffect(() => {
+    // Special pages that shouldn't be auto-redirected from
+    const specialPages = ['admin-accounts', 'plugin-publisher', 'admin-approvals'];
+
     if (navItems.length > 0 && activePage === 'welcome') {
       // Only auto-select if we're still on the default welcome page
       setActivePage(navItems[0].id);
-    } else if (navItems.length === 0) {
-      // If no navigation items, stay on welcome
+    } else if (navItems.length === 0 && !specialPages.includes(activePage)) {
+      // If no navigation items AND not on a special page, go to welcome
       setActivePage('welcome');
     }
   }, [navItems, activePage]); // Include activePage dependency
 
+  // NOTE: Authentication is now handled by Convex Auth
+  // The Authenticated/Unauthenticated components in layout.tsx handle redirects
+  // useEffect(() => {
+  //   // Redirect to login if not authenticated
+  //   if (!isAuthenticated) {
+  //     router.push('/login');
+  //   }
+  // }, [isAuthenticated, router]);
 
-  useEffect(() => {
-    // Redirect to login if not authenticated
-    if (!isAuthenticated) {
-      router.push('/login');
-    }
-  }, [isAuthenticated, router]);
-
-  const handleLogout = () => {
-    logout();
+  // Function to handle logout
+  const handleLogout = async () => {
+    await logout();
     router.push('/login');
   };
 
@@ -228,12 +275,19 @@ export default function DashboardPage() {
   // Function to render the active page
   const renderActivePage = () => {
     const pageProps = { username: username || undefined, userData: userData as Record<string, unknown> | undefined };
-    
-    // If no navigation items, show welcome content
+
+    // Get the component from the page registry
+    const PageComponent = getPageComponent(activePage);
+
+    if (PageComponent) {
+      return <PageComponent {...pageProps} />;
+    }
+
+    // If no navigation items AND no active page found, show welcome content
     if (navItems.length === 0) {
       return (
-        <div style={{ 
-          padding: '60px', 
+        <div style={{
+          padding: '60px',
           textAlign: 'center',
           height: '100%',
           display: 'flex',
@@ -241,9 +295,9 @@ export default function DashboardPage() {
           justifyContent: 'center',
           alignItems: 'center'
         }}>
-          <h1 style={{ 
-            fontSize: '48px', 
-            marginBottom: '20px', 
+          <h1 style={{
+            fontSize: '48px',
+            marginBottom: '20px',
             fontFamily: 'JetBrains Mono, monospace',
             color: 'var(--dark-blue)',
             fontWeight: 'bold',
@@ -252,17 +306,17 @@ export default function DashboardPage() {
           }}>
             LOCKEDIN
           </h1>
-          <h2 style={{ 
-            fontSize: '24px', 
-            marginBottom: '30px', 
+          <h2 style={{
+            fontSize: '24px',
+            marginBottom: '30px',
             color: 'var(--grey)',
             fontFamily: 'JetBrains Mono, monospace'
           }}>
             {username ? `Welcome, ${username}!` : 'Welcome to LockedIN'}
           </h2>
           {userData && (
-            <div style={{ 
-              fontSize: '16px', 
+            <div style={{
+              fontSize: '16px',
               lineHeight: '1.6',
               color: 'var(--grey)',
               fontFamily: 'JetBrains Mono, monospace'
@@ -276,18 +330,11 @@ export default function DashboardPage() {
         </div>
       );
     }
-    
-    // Get the component from the page registry
-    const PageComponent = getPageComponent(activePage);
-    
-    if (PageComponent) {
-      return <PageComponent {...pageProps} />;
-    }
-    
+
     // Fallback if component not found
     return (
-      <div style={{ 
-        padding: '60px', 
+      <div style={{
+        padding: '60px',
         textAlign: 'center',
         height: '100%',
         display: 'flex',
@@ -295,12 +342,12 @@ export default function DashboardPage() {
         justifyContent: 'center',
         alignItems: 'center'
       }}>
-        <h2 style={{ 
+        <h2 style={{
           fontSize: '32px',
           color: 'var(--dark-blue)',
           fontFamily: 'JetBrains Mono, monospace'
         }}>Page not found: {activePage}</h2>
-        <p style={{ 
+        <p style={{
           fontSize: '16px',
           color: 'var(--grey)',
           fontFamily: 'JetBrains Mono, monospace'
@@ -309,29 +356,30 @@ export default function DashboardPage() {
     );
   };
 
-  // Show loading screen while checking authentication
-  if (isLoading) {
+  // Show loading screen while checking authentication and approval status
+  if (isLoading || !authVerified) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
         height: '100vh',
         fontFamily: 'JetBrains Mono, monospace',
         fontSize: '18px',
-        color: '#666'
+        color: '#666',
+        backgroundColor: '#f9f9f9'
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ 
-            width: '40px', 
-            height: '40px', 
+          <div style={{
+            width: '40px',
+            height: '40px',
             border: '4px solid #f3f3f3',
             borderTop: '4px solid #007bff',
             borderRadius: '50%',
             animation: 'spin 1s linear infinite',
             margin: '0 auto 20px'
           }}></div>
-          <p>Checking authentication...</p>
+          <p>Ověřování přístupu...</p>
         </div>
         <style jsx>{`
           @keyframes spin {
@@ -339,21 +387,6 @@ export default function DashboardPage() {
             100% { transform: rotate(360deg); }
           }
         `}</style>
-      </div>
-    );
-  }
-
-  // Show loading or redirect if not authenticated
-  if (!isAuthenticated) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        fontFamily: 'monospace'
-      }}>
-        <p>Redirecting to login...</p>
       </div>
     );
   }
@@ -369,7 +402,7 @@ export default function DashboardPage() {
             <span className={styles.logoIn}>IN</span>
           </div>
         </div>
-        
+
         {/* Navigation Area */}
         <div className={styles.navigation}>
           {/* Primary Navigation - Counter and Parking */}
@@ -383,8 +416,8 @@ export default function DashboardPage() {
                 >
                   <span className={styles.navIcon}>
                     {item.icon.startsWith('icon-') ? (
-                      <PluginIcon 
-                        pluginName={item.icon.replace('icon-', '')} 
+                      <PluginIcon
+                        pluginName={item.icon.replace('icon-', '')}
                         fallback={getPluginEmoji(item.icon.replace('icon-', ''))}
                       />
                     ) : (
@@ -397,7 +430,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-        
+
         {/* Admin Section */}
         <div className={styles.adminSection}>
           {/* Management Buttons */}
@@ -421,9 +454,16 @@ export default function DashboardPage() {
                 </span>
                 <span className={styles.managementLabel}>Plugins</span>
               </button>
+              <button
+                className={`${styles.managementButton} ${activePage === 'admin-approvals' ? styles.active : ''}`}
+                onClick={() => setActivePage('admin-approvals')}
+              >
+                <span className={styles.managementIcon}>✓</span>
+                <span className={styles.managementLabel}>Approvals</span>
+              </button>
             </div>
           )}
-          
+
           {/* Admin Button with Logout */}
           <button
             className={`${styles.adminButton} ${styles.active}`}
@@ -436,7 +476,7 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
-      
+
       {/* Main Content */}
       <div className={styles.mainContent}>
         <div className={styles.contentContainer}>

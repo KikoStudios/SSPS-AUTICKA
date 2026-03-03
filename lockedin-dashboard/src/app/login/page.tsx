@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAction } from 'convex/react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuthActions } from '@convex-dev/auth/react';
+import { useConvexAuth, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { useAuth } from '../auth-context';
 import styles from './login.module.css';
 
 import Image from 'next/image';
@@ -14,18 +14,39 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
 
   const router = useRouter();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const loginUser = useAction((api.context as any).loginUserAction);
-  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
+  const { signIn } = useAuthActions();
+  const { isAuthenticated } = useConvexAuth();
 
-  // Redirect if already authenticated
+  // Check if any users exist - if not, allow sign-up for first admin
+  const hasUsers = useQuery(api.publicApi.hasAnyUsers);
+  const canSignUp = hasUsers === false; // explicitly false means we know there are 0 users
+
+  // Auto-switch to signUp mode if no users exist
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
+    if (canSignUp) {
+      setMode('signUp');
+    }
+  }, [canSignUp]);
+
+  // Check for error parameters in URL (e.g., redirected from dashboard due to pending approval)
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam === 'pending_approval') {
+      setError('❌ Váš účet čeká na schválení správcem. Kontaktujte správce.');
+    }
+  }, [searchParams]);
+
+  // Redirect to dashboard if authenticated
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      console.log('Authenticated! Redirecting to dashboard...');
       router.push('/dashboard');
     }
-  }, [isAuthenticated, authLoading, router]);
+  }, [isAuthenticated, isLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,78 +54,76 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const result = await loginUser({
-        username,
-        password,
-      });
+      // Create FormData to pass to Convex Auth
+      // Password provider expects 'email' field, not 'username'
+      const formData = new FormData();
+      formData.append('email', username); // Send as email field
+      formData.append('password', password);
+      formData.append('flow', mode);
 
-      if (result.success) {
-        // Login successful
-        console.log('Login successful:', result);
+      console.log('Attempting sign in...', { mode, username });
+      await signIn('password', formData);
+      console.log('Sign in successful!');
 
-        // Parse user data
-        let userData = {};
-        try {
-          userData = JSON.parse(result.usrData || '{}');
-        } catch (error) {
-          console.error('Error parsing user data:', error);
-          userData = { role: 'user' };
-        }
-
-        // Store user data in auth context
-        login(username, userData, result.userId);
-
-        // Redirect to dashboard
-        router.push('/dashboard');
-      } else {
-        setError('Invalid username or password');
+      // NEW: Check if account is approved (if just signed up)
+      if (mode === 'signUp') {
+        // Account was just created - may need approval
+        // Show success message
+        setError('✅ Účet vytvořen! Čeká na schválení správcem.');
+        setIsLoading(false);
+        // Optionally redirect back to sign in after delay
+        setTimeout(() => {
+          setMode('signIn');
+          setError('');
+        }, 3000);
+        return;
       }
+
+      // For signIn mode, redirect to dashboard
+      // The dashboard will verify authentication
+      console.log('Redirecting to dashboard...');
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 500); // Small delay to let auth state settle
+      
     } catch (err) {
       console.error('Login error:', err);
-      setError('An error occurred during login. Please try again.');
-    } finally {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+
+      // Check if account already exists
+      if (errorMessage.includes('already exists')) {
+        setError('Účet již existuje! Přihlašování...');
+        // Auto-login with same credentials
+        setTimeout(async () => {
+          try {
+            const loginFormData = new FormData();
+            loginFormData.append('email', username);
+            loginFormData.append('password', password);
+            loginFormData.append('flow', 'signIn');
+            
+            console.log('Auto-logging in with existing account...');
+            await signIn('password', loginFormData);
+            console.log('Auto-login successful!');
+            
+            setTimeout(() => {
+              router.push('/dashboard');
+            }, 500);
+          } catch (loginErr) {
+            console.error('Auto-login failed:', loginErr);
+            setError('Neplatné uživatelské jméno nebo heslo. Zkuste to znovu.');
+            setIsLoading(false);
+          }
+        }, 1000);
+      } else if (mode === 'signUp') {
+        setError('Chyba při vytváření účtu. Zkuste to znovu.');
+      } else if (errorMessage.includes('pending approval') || errorMessage.includes('not approved')) {
+        setError('Váš účet čeká na schválení správcem.');
+      } else {
+        setError('Neplatné uživatelské jméno nebo heslo. Zkuste to znovu.');
+      }
       setIsLoading(false);
     }
   };
-
-  // Show loading screen while checking authentication
-  if (authLoading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        fontFamily: "'SF Pro', -apple-system, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif",
-        fontSize: '18px',
-        color: '#666'
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            border: '4px solid #f3f3f3',
-            borderTop: '4px solid #007bff',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            margin: '0 auto 20px'
-          }}></div>
-          <p>Checking authentication...</p>
-        </div>
-        <style jsx>{`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
-      </div>
-    );
-  }
-
-  // Don't render login form if already authenticated (will redirect)
-  if (isAuthenticated) {
-    return null;
-  }
 
   return (
     <div className={styles.loginContainer}>
@@ -179,8 +198,38 @@ export default function LoginPage() {
             className={styles.loginButton}
             disabled={isLoading}
           >
-            {isLoading ? 'LOGGING IN...' : 'LOGIN'}
+            {isLoading
+              ? (mode === 'signUp' ? 'CREATING ACCOUNT...' : 'LOGGING IN...')
+              : (mode === 'signUp' ? 'CREATE ACCOUNT' : 'LOGIN')
+            }
           </button>
+
+          {/* Toggle between Sign In and Sign Up - Always visible */}
+          <button
+            type="button"
+            onClick={() => setMode(mode === 'signIn' ? 'signUp' : 'signIn')}
+            style={{
+              marginTop: '10px',
+              background: 'transparent',
+              border: 'none',
+              color: '#666',
+              cursor: 'pointer',
+              fontSize: '14px',
+              textDecoration: 'underline',
+            }}
+          >
+            {mode === 'signIn'
+              ? 'Need to create an account? Sign up'
+              : 'Already have an account? Sign in'
+            }
+          </button>
+
+          {/* Show message about approval if signing up */}
+          {mode === 'signUp' && (
+            <div style={{ marginTop: '10px', color: '#999', fontSize: '12px' }}>
+              New accounts require admin approval to login
+            </div>
+          )}
         </form>
       </div>
     </div>
