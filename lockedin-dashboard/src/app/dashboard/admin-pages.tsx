@@ -1,44 +1,54 @@
-import React, { useState, useEffect } from 'react';
-import { useQuery, useAction } from 'convex/react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { useAction, useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../auth-context';
-import Image from 'next/image';
-import { getPluginEmoji } from './plugin-loader';
-
-interface PluginIconProps {
-  plugin: { name: string, iconFileId?: string };
-}
-
-const PluginIcon: React.FC<PluginIconProps> = ({ plugin }) => {
-  const iconUrl = useQuery(api.context.getPluginIconUrl, { pluginName: plugin.name });
-  
-  return (
-    <div style={{
-      width: '36px',
-      height: '36px',
-      backgroundColor: iconUrl ? 'transparent' : '#95a5a6',
-      borderRadius: '8px',
-      marginBottom: '10px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '20px',
-      color: '#ffffff',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-      overflow: 'hidden'
-    }}>
-      {iconUrl ? (
-        <img 
-          src={iconUrl}
-          alt={`${plugin.name} icon`}
-          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-        />
-      ) : (
-        getPluginEmoji(plugin.name)
-      )}
-    </div>
-  );
-};
+import {
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  Chip,
+  Divider,
+  Input,
+  Spinner,
+  Table,
+  TableBody,
+  TableCell,
+  TableColumn,
+  TableHeader,
+  TableRow,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  useDisclosure,
+  User as HeroUser,
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+  RadioGroup,
+  Radio,
+  CheckboxGroup,
+  Checkbox,
+  Tooltip,
+} from '@heroui/react';
+import { AlertBox } from '@/components/heroui-components';
+import { 
+  FaUser, 
+  FaShieldAlt, 
+  FaEllipsisV, 
+  FaEdit, 
+  FaTrash, 
+  FaPlus, 
+  FaSearch, 
+  FaCheckCircle, 
+  FaTimesCircle,
+  FaUserShield,
+  FaPlug,
+  FaKey
+} from 'react-icons/fa';
 
 interface PageProps {
   username?: string;
@@ -47,26 +57,66 @@ interface PageProps {
 
 interface User {
   _id: string;
-  username: string;
-  usrData: string;
-  hashPassword: string;
+  username?: string;
+  usrData?: string;
+  hashPassword?: string;
+  email?: string;
+  image?: string;
 }
 
+interface PluginItem {
+  name: string;
+  description?: string;
+}
+
+interface ParsedUserData {
+  role: string;
+  createdAt?: string;
+  isActive?: boolean;
+  plugins: string;
+}
+
+interface FeedbackState {
+  type: 'success' | 'error' | 'info' | 'warning';
+  message: string;
+}
+
+const parseUserData = (value?: string): ParsedUserData => {
+  try {
+    const parsed = value ? JSON.parse(value) : {};
+    return {
+      role: parsed.role || 'user',
+      createdAt: parsed.createdAt,
+      isActive: parsed.isActive !== false, // Default to true if not specified
+      plugins: parsed.plugins || '',
+    };
+  } catch {
+    return {
+      role: 'user',
+      isActive: true,
+      plugins: '',
+    };
+  }
+};
+
 export const AdminAccountManagementPage: React.FC<PageProps> = ({ username }) => {
+  const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   const [formData, setFormData] = useState({
     username: '',
     password: '',
     role: 'user',
-    plugins: ''
+    plugins: [] as string[],
   });
 
   // Get refreshUserData from auth context
   const { refreshUserData, username: currentUsername } = useAuth();
-  
+
   // Get all users and plugins
   const allUsers = useQuery(api.context.getAllUsers);
   const allPlugins = useQuery(api.context.getAllPlugins);
@@ -74,35 +124,60 @@ export const AdminAccountManagementPage: React.FC<PageProps> = ({ username }) =>
   const createUserAction = useAction((api.context as any).createUserAction);
   const updateUserAction = useAction(api.context.updateUserAction);
   const deleteUserAction = useAction(api.context.deleteUserAction);
-  // const getUserByUsername = useQuery(api.context.getUserByUsername, currentUsername ? { username: currentUsername } : "skip");
-  
+  const generateUploadUrl = useMutation(api.context.generateUploadUrl);
+
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const filteredUsers = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) {
+      return users;
+    }
+    return users.filter((user) => (user.username || '').toLowerCase().includes(term));
+  }, [users, searchTerm]);
+
+  const userStats = useMemo(() => {
+    const adminCount = users.filter((user) => parseUserData(user.usrData).role === 'admin').length;
+    const activeCount = users.filter((user) => parseUserData(user.usrData).isActive !== false).length;
+    return {
+      total: users.length,
+      admins: adminCount,
+      active: activeCount,
+    };
+  }, [users]);
+
+  const resetForm = useCallback(() => {
+    setFormData({
+      username: '',
+      password: '',
+      role: 'user',
+      plugins: [],
+    });
+    setEditingUser(null);
+    setSelectedImage(null);
+  }, []);
+
   // Function to refresh current user's data from database
   const refreshCurrentUserData = async () => {
     if (currentUsername) {
       try {
-        // Find the updated user data from the allUsers list (which should be fresh)
         const updatedUser = allUsers?.find(user => user.username === currentUsername);
-        
         if (updatedUser) {
-          // Update the stored auth data with fresh user data
           const storedAuth = localStorage.getItem('authData');
           if (storedAuth) {
             const authData = JSON.parse(storedAuth);
             const updatedAuthData = {
               ...authData,
-              userData: updatedUser.usrData, // Update with fresh user data
+              userData: updatedUser.usrData,
               timestamp: Date.now()
             };
             localStorage.setItem('authData', JSON.stringify(updatedAuthData));
           }
         }
-        
-        // Trigger a dashboard refresh
         if (typeof window !== 'undefined' && (window as unknown as Record<string, unknown>).refreshDashboard) {
           (((window as unknown as Record<string, unknown>).refreshDashboard) as () => void)();
         }
-        
-        // Also call the regular refresh
         refreshUserData();
       } catch (error) {
         console.error('Error refreshing current user data:', error);
@@ -117,559 +192,522 @@ export const AdminAccountManagementPage: React.FC<PageProps> = ({ username }) =>
     }
   }, [allUsers]);
 
+  const handleOpenModal = (user?: User) => {
+    if (user) {
+      const userData = parseUserData(user.usrData);
+      const selectedPlugins = userData.plugins
+        .split(',')
+        .map((name: string) => name.trim())
+        .filter(Boolean);
+
+      setFormData({
+        username: user.username || '',
+        password: '',
+        role: userData.role || 'user',
+        plugins: selectedPlugins,
+      });
+      setEditingUser(user);
+    } else {
+      resetForm();
+    }
+    setSelectedImage(null);
+    onOpen();
+  };
+
   const handleSubmitUser = async () => {
     if (!editingUser && (!formData.username || !formData.password)) {
-      alert('Please enter username and password');
+      setFeedback({
+        type: 'warning',
+        message: 'Please enter both username and password for a new user.',
+      });
       return;
     }
 
+    if (!formData.username.trim()) {
+      setFeedback({
+        type: 'warning',
+        message: 'Username is required.',
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setFeedback(null);
+
     try {
+      let imageUrl = editingUser?.image;
+
+      // Handle image upload if a new image was selected
+      if (selectedImage) {
+        const postUrl = await generateUploadUrl();
+        const result = await fetch(postUrl, {
+          method: "POST",
+          headers: { "Content-Type": selectedImage.type },
+          body: selectedImage,
+        });
+        const { storageId } = await result.json();
+        imageUrl = storageId;
+      }
+
+      const previousUserData = editingUser ? parseUserData(editingUser.usrData) : null;
       const userData = JSON.stringify({
         role: formData.role,
-        createdAt: editingUser ? JSON.parse(editingUser.usrData || '{}').createdAt : new Date().toISOString(),
+        createdAt: previousUserData?.createdAt || new Date().toISOString(),
         isActive: true,
-        plugins: formData.plugins
+        plugins: formData.plugins.join(','),
       });
 
       if (editingUser) {
-        // Update existing user
         await updateUserAction({
           userId: editingUser._id,
           username: formData.username !== editingUser.username ? formData.username : undefined,
           password: formData.password ? formData.password : undefined,
+          image: imageUrl,
           usrData: userData
         });
-        alert('User updated successfully!');
+        setFeedback({ type: 'success', message: 'User updated successfully.' });
       } else {
-        // Create new user
         await createUserAction({
           username: formData.username,
           password: formData.password,
           usrData: userData
         });
-        alert('User created successfully!');
+        setFeedback({ type: 'success', message: 'User created successfully.' });
       }
 
-      // Reset form
-      setFormData({
-        username: '',
-        password: '',
-        role: 'user',
-        plugins: ''
-      });
-      setShowAddForm(false);
-      setEditingUser(null);
-      
-      // Refresh users list and user data without reloading
+      onClose();
+      resetForm();
+      setSelectedImage(null);
       refreshUserData();
-      
-      // If we're updating the current user, refresh their dashboard data
+
       if (editingUser && editingUser.username === currentUsername) {
         refreshCurrentUserData();
       }
-      
     } catch (error) {
       console.error('Error saving user:', error);
-      alert('Error saving user. Please try again.');
+      setFeedback({ type: 'error', message: 'Error saving user. Please try again.' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleEditUser = (user: User) => {
-    try {
-      const userData = JSON.parse(user.usrData || '{}');
-      setFormData({
-        username: user.username,
-        password: '',
-        role: userData.role || 'user',
-        plugins: userData.plugins || ''
-      });
-      setEditingUser(user);
-    } catch (error) {
-      console.error('Error parsing user data:', error);
-    }
-  };
-
-  const handleDeleteUser = async (userId: string) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
+  const handleDeleteUser = async (user: User) => {
+    if (user.username === username) return;
+    
+    if (window.confirm(`Are you sure you want to delete ${user.username}?`)) {
       try {
-        await deleteUserAction({ userId });
-        
-        // Refresh users list and user data without reloading
+        await deleteUserAction({ userId: user._id });
         refreshUserData();
-        
-        // Show success message
-        alert('User deleted successfully!');
+        setFeedback({ type: 'success', message: 'User deleted successfully.' });
       } catch (error) {
         console.error('Error deleting user:', error);
-        alert('Error deleting user. Please try again.');
+        setFeedback({ type: 'error', message: 'Error deleting user. Please try again.' });
       }
     }
   };
 
+  const renderCell = useCallback((user: User, columnKey: React.Key) => {
+    const userData = parseUserData(user.usrData);
+    const plugins = userData.plugins
+      .split(',')
+      .map((name: string) => name.trim())
+      .filter(Boolean);
+
+    switch (columnKey) {
+      case "user":
+        return (
+          <HeroUser
+            avatarProps={{
+              radius: "lg",
+              src: user.image ? (user.image.startsWith('http') ? user.image : `https://dedicated-koala-14.convex.cloud/api/storage/get/${user.image}`) : undefined,
+              fallback: <FaUser className="text-default-400" />
+            }}
+            description={user.email || `@${user.username}`}
+            name={user.username}
+          >
+            {user.username}
+          </HeroUser>
+        );
+      case "role":
+        return (
+          <Chip
+            className="capitalize border-none gap-1 text-default-600"
+            color={userData.role === 'admin' ? "secondary" : "default"}
+            size="sm"
+            variant="flat"
+            startContent={userData.role === 'admin' ? <FaUserShield size={12} /> : <FaUser size={12} />}
+          >
+            {userData.role}
+          </Chip>
+        );
+      case "status":
+        return (
+          <Chip
+            className="capitalize"
+            color={userData.isActive ? "success" : "danger"}
+            size="sm"
+            variant="flat"
+            startContent={userData.isActive ? <FaCheckCircle size={12} /> : <FaTimesCircle size={12} />}
+          >
+            {userData.isActive ? "Active" : "Inactive"}
+          </Chip>
+        );
+      case "plugins":
+        return (
+          <div className="flex flex-wrap gap-1 max-w-[200px]">
+            {plugins.length > 0 ? (
+              <>
+                {plugins.slice(0, 2).map((p) => (
+                  <Chip key={p} size="sm" variant="dot" color="primary" className="border-none">
+                    {p}
+                  </Chip>
+                ))}
+                {plugins.length > 2 && (
+                  <Tooltip content={plugins.slice(2).join(", ")}>
+                    <Chip size="sm" variant="flat">+{plugins.length - 2}</Chip>
+                  </Tooltip>
+                )}
+              </>
+            ) : (
+              <span className="text-tiny text-default-400">No plugins</span>
+            )}
+          </div>
+        );
+      case "actions":
+        return (
+          <div className="relative flex justify-end items-center gap-2">
+            <Dropdown className="bg-background border-1 border-default-200">
+              <DropdownTrigger>
+                <Button isIconOnly radius="full" size="sm" variant="light">
+                  <FaEllipsisV className="text-default-400" />
+                </Button>
+              </DropdownTrigger>
+              <DropdownMenu aria-label="Action menu" disabledKeys={user.username === username ? ["delete"] : []}>
+                <DropdownItem 
+                  key="edit" 
+                  startContent={<FaEdit />}
+                  onClick={() => handleOpenModal(user)}
+                >
+                  Edit User
+                </DropdownItem>
+                <DropdownItem 
+                  key="delete" 
+                  className="text-danger" 
+                  color="danger" 
+                  startContent={<FaTrash />}
+                  onClick={() => handleDeleteUser(user)}
+                >
+                  Delete User
+                </DropdownItem>
+              </DropdownMenu>
+            </Dropdown>
+          </div>
+        );
+      default:
+        return null;
+    }
+  }, [username, handleOpenModal, handleDeleteUser]);
 
   if (isLoading) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '32px', marginBottom: '20px', fontFamily: 'JetBrains Mono, monospace' }}>
-          ACCOUNT MANAGEMENT
-        </h1>
-        <p>Loading users...</p>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Spinner size="lg" label="Loading Account Management..." color="primary" labelColor="primary" />
       </div>
     );
   }
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      gap: '20px', 
-      height: 'calc(100vh - 40px)', 
-      padding: '20px',
-      fontFamily: 'JetBrains Mono, monospace',
-      overflow: 'hidden',
-      backgroundColor: '#ffffff'
-    }}>
-      {/* Left Panel - User Form */}
-      <div style={{ 
-        width: 'calc(50% - 10px)', 
-        backgroundColor: '#0F2044', 
-        borderRadius: '20px', 
-        padding: '25px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '18px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-        border: editingUser ? '3px solid #e74c3c' : 'none',
-        position: 'relative'
-      }}>
-        {/* Plus Button on Corner */}
-        <button
-          onClick={() => {
-            if (!editingUser && (!formData.username || !formData.password)) {
-              alert('Please enter username and password');
-              return;
-            }
-            // Clear editing state for new user
-            setEditingUser(null);
-          }}
-          style={{
-            position: 'absolute',
-            top: '-18px',
-            right: '-18px',
-            width: '56px',
-            height: '56px',
-            backgroundColor: '#e74c3c',
-            border: 'none',
-            borderRadius: '50%',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 8px rgba(231, 76, 60, 0.3)',
-            transition: 'all 0.2s ease',
-            transform: 'translateY(0)',
-            zIndex: 10
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            e.currentTarget.style.boxShadow = '0 6px 12px rgba(231, 76, 60, 0.4)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 8px rgba(231, 76, 60, 0.3)';
-          }}
-        >
-          <Image src="/media/plus.svg" alt="Add" width={28} height={28} style={{ filter: 'brightness(0) invert(1)' }} />
-        </button>
-
-        {/* Cancel Button when editing */}
-        {editingUser && (
-          <button
-            onClick={() => {
-              setFormData({
-                username: '',
-                password: '',
-                role: 'user',
-                plugins: ''
-              });
-              setEditingUser(null);
-            }}
-            style={{
-              position: 'absolute',
-              top: '-18px',
-              right: '38px',
-              width: '80px',
-              height: '56px',
-              backgroundColor: '#95a5a6',
-              border: 'none',
-              borderRadius: '28px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 8px rgba(149, 165, 166, 0.3)',
-              transition: 'all 0.2s ease',
-              transform: 'translateY(0)',
-              zIndex: 10
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 6px 12px rgba(149, 165, 166, 0.4)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 8px rgba(149, 165, 166, 0.3)';
-            }}
-          >
-            <span style={{ color: '#ffffff', fontSize: '12px', fontWeight: 'bold', fontFamily: 'JetBrains Mono, monospace' }}>CANCEL</span>
-          </button>
-        )}
-
-        {/* User Input Section */}
-        <div style={{ marginTop: '10px' }}>
-          <input
-            type="text"
-            placeholder={editingUser ? `Current: ${editingUser.username}` : "username"}
-            value={formData.username}
-            onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
-            style={{
-              width: '100%',
-              padding: '14px 18px',
-              backgroundColor: '#2c3e50',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '12px',
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: '14px',
-              marginBottom: '12px',
-              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)',
-              transition: 'all 0.2s ease'
-            }}
-          />
-          <input
-            type="password"
-            placeholder={editingUser ? "Leave blank to keep current password" : "password"}
-            value={formData.password}
-            onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-            style={{
-              width: '100%',
-              padding: '14px 18px',
-              backgroundColor: '#2c3e50',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '12px',
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: '14px',
-              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)',
-              transition: 'all 0.2s ease'
-            }}
-          />
-            </div>
-            
-        {/* Role Selection */}
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button
-            onClick={() => setFormData(prev => ({ ...prev, role: 'admin' }))}
-            style={{
-              padding: '14px 28px',
-              backgroundColor: formData.role === 'admin' ? '#e74c3c' : '#2c3e50',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '12px',
-              cursor: 'pointer',
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              boxShadow: formData.role === 'admin' ? '0 4px 8px rgba(231, 76, 60, 0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            admin
-          </button>
-          <button
-            onClick={() => setFormData(prev => ({ ...prev, role: 'user' }))}
-                style={{
-              padding: '14px 28px',
-              backgroundColor: formData.role === 'user' ? '#e74c3c' : '#2c3e50',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '12px',
-              cursor: 'pointer',
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              boxShadow: formData.role === 'user' ? '0 4px 8px rgba(231, 76, 60, 0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            user
-          </button>
-            </div>
-            
-        {/* Plugin Selection Grid */}
-      <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', 
-          gap: '10px',
-          flex: '1',
-          overflowY: 'auto',
-          paddingRight: '5px',
-          alignContent: 'start'
-        }}>
-          {allPlugins && allPlugins.length > 0 ? (
-            allPlugins.map((plugin: { name: string, author: string, version: string, description?: string, iconFileId?: string }, index: number) => {
-              const isSelected = formData.plugins.split(',').map(p => p.trim()).includes(plugin.name);
-              const isActive = isSelected;
-              return (
-                <div
-                  key={plugin.name}
-                  onClick={() => {
-                    const currentPlugins = formData.plugins.split(',').map(p => p.trim()).filter(Boolean);
-                    let newPlugins;
-                    if (isSelected) {
-                      newPlugins = currentPlugins.filter(p => p !== plugin.name);
-                    } else {
-                      newPlugins = [...currentPlugins, plugin.name];
-                    }
-                    setFormData(prev => ({ ...prev, plugins: newPlugins.join(',') }));
-                  }}
-                  style={{
-                    backgroundColor: '#2c3e50',
-                    borderRadius: '10px',
-                    padding: '10px',
-                    cursor: 'pointer',
-                    border: isActive ? '2px solid #27ae60' : '2px solid #e74c3c',
-                    position: 'relative',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    height: '140px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                    transition: 'all 0.2s ease',
-                    transform: 'translateY(0)'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '6px' }}>
-                    <div style={{ transform: 'scale(0.8)', transformOrigin: 'top left' }}>
-                      <PluginIcon plugin={plugin} />
-                    </div>
-                    <div style={{
-                      width: '10px',
-                      height: '10px',
-                      borderRadius: '50%',
-                      backgroundColor: isActive ? '#27ae60' : '#e74c3c',
-                      boxShadow: `0 0 5px ${isActive ? '#27ae60' : '#e74c3c'}`
-                    }} title={isActive ? 'Active' : 'Inactive'} />
-                  </div>
-                  
-                  <div style={{
-                    color: '#ffffff',
-                    fontSize: '11px',
-                    fontWeight: 'bold',
-                    marginBottom: '2px',
-                    lineHeight: '1.2',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis'
-                  }}>
-                    {plugin.name}
-                  </div>
-                  
-                  <div style={{
-                    color: '#bdc3c7',
-                    fontSize: '9px',
-                    marginBottom: '4px',
-                    lineHeight: '1.2',
-                    flex: '1',
-                    overflow: 'hidden',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 3,
-                    WebkitBoxOrient: 'vertical'
-                  }}>
-                    {plugin.description || `${plugin.name} plugin`}
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            Array.from({ length: 6 }, (_, index) => (
-              <div
-                key={index}
-                style={{
-                  backgroundColor: '#2c3e50',
-                  borderRadius: '10px',
-                  padding: '10px',
-                  border: '2px solid #e74c3c',
-                  position: 'relative',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  height: '140px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}
-              >
-                <div style={{ width: '28px', height: '28px', backgroundColor: '#95a5a6', borderRadius: '6px', marginBottom: '8px' }}></div>
-                <div style={{ height: '10px', width: '80%', backgroundColor: '#34495e', borderRadius: '2px', marginBottom: '4px' }}></div>
-                <div style={{ height: '8px', width: '100%', backgroundColor: '#34495e', borderRadius: '2px', marginBottom: '2px' }}></div>
-                <div style={{ height: '8px', width: '60%', backgroundColor: '#34495e', borderRadius: '2px' }}></div>
-              </div>
-            ))
-          )}
+    <div className="w-full flex flex-col gap-6 p-4 md:p-8">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Account Management</h1>
+          <p className="text-default-500">View and manage system users and their permissions.</p>
         </div>
-      
-        {/* Update/Create Button */}
-          <button
-          onClick={handleSubmitUser}
-            style={{
-            width: '100%',
-            padding: '16px',
-            backgroundColor: editingUser ? '#e74c3c' : '#27ae60',
-            color: '#ffffff',
-              border: 'none',
-            borderRadius: '14px',
-              cursor: 'pointer',
-              fontFamily: 'JetBrains Mono, monospace',
-            fontSize: '15px',
-            fontWeight: 'bold',
-            boxShadow: editingUser ? '0 4px 12px rgba(231, 76, 60, 0.3)' : '0 4px 12px rgba(39, 174, 96, 0.3)',
-            transition: 'all 0.2s ease',
-            transform: 'translateY(0)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            if (editingUser) {
-              e.currentTarget.style.boxShadow = '0 6px 16px rgba(231, 76, 60, 0.4)';
-            } else {
-              e.currentTarget.style.boxShadow = '0 6px 16px rgba(39, 174, 96, 0.4)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            if (editingUser) {
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(231, 76, 60, 0.3)';
-            } else {
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(39, 174, 96, 0.3)';
-            }
-          }}
+        <Button 
+          color="primary" 
+          endContent={<FaPlus />} 
+          onClick={() => handleOpenModal()}
+          className="shadow-lg shadow-primary/20"
         >
-          {editingUser ? 'UPDATE USER' : 'CREATE USER'}
-          </button>
-        </div>
+          New Account
+        </Button>
+      </div>
 
-      {/* Right Panel - User List */}
-      <div style={{ 
-        width: 'calc(50% - 10px)', 
-        backgroundColor: '#0F2044', 
-        borderRadius: '20px', 
-        padding: '25px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '15px',
-        overflow: 'hidden',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-      }}>
-            {users.map((user) => {
-              const userData = JSON.parse(user.usrData || '{}');
-              return (
-            <div
-              key={user._id}
-              style={{
-                backgroundColor: '#2c3e50',
-                borderRadius: '14px',
-                padding: '16px 20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                minHeight: '56px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                transition: 'all 0.2s ease',
-                transform: 'translateY(0)'
-              }}
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="border-none bg-gradient-to-br from-primary/10 to-transparent shadow-sm">
+          <CardBody className="flex flex-row items-center gap-4 py-5">
+            <div className="bg-primary/20 p-3 rounded-xl">
+              <FaUser className="text-primary text-xl" />
+            </div>
+            <div>
+              <p className="text-tiny uppercase font-bold text-default-500">Total Users</p>
+              <p className="text-2xl font-bold">{userStats.total}</p>
+            </div>
+          </CardBody>
+        </Card>
+        <Card className="border-none bg-gradient-to-br from-secondary/10 to-transparent shadow-sm">
+          <CardBody className="flex flex-row items-center gap-4 py-5">
+            <div className="bg-secondary/20 p-3 rounded-xl">
+              <FaShieldAlt className="text-secondary text-xl" />
+            </div>
+            <div>
+              <p className="text-tiny uppercase font-bold text-default-500">Admins</p>
+              <p className="text-2xl font-bold">{userStats.admins}</p>
+            </div>
+          </CardBody>
+        </Card>
+        <Card className="border-none bg-gradient-to-br from-success/10 to-transparent shadow-sm">
+          <CardBody className="flex flex-row items-center gap-4 py-5">
+            <div className="bg-success/20 p-3 rounded-xl">
+              <FaCheckCircle className="text-success text-xl" />
+            </div>
+            <div>
+              <p className="text-tiny uppercase font-bold text-default-500">Active</p>
+              <p className="text-2xl font-bold">{userStats.active}</p>
+            </div>
+          </CardBody>
+        </Card>
+      </div>
+
+      {feedback && (
+        <AlertBox
+          type={feedback.type}
+          message={feedback.message}
+          onClose={() => setFeedback(null)}
+        />
+      )}
+
+      {/* Main Table Card */}
+      <Card className="shadow-sm border-none">
+        <CardHeader className="flex flex-col sm:flex-row gap-4 items-center justify-between px-6 py-4">
+          <div className="relative w-full sm:w-72">
+            <Input
+              isClearable
+              placeholder="Search by username..."
+              size="sm"
+              startContent={<FaSearch className="text-default-300" />}
+              value={searchTerm}
+              onValueChange={setSearchTerm}
+              variant="bordered"
+              className="w-full"
+            />
+          </div>
+          <p className="text-default-400 text-small">Showing {filteredUsers.length} users</p>
+        </CardHeader>
+        <Divider />
+        <CardBody className="p-0">
+          <Table 
+            aria-label="User accounts table" 
+            removeWrapper
+            selectionMode="none"
+            classNames={{
+              th: ["bg-transparent", "text-default-500", "border-b", "border-divider"],
+              td: ["py-4"]
+            }}
+          >
+            <TableHeader>
+              <TableColumn key="user">USER</TableColumn>
+              <TableColumn key="role">ROLE</TableColumn>
+              <TableColumn key="status">STATUS</TableColumn>
+              <TableColumn key="plugins">PLUGINS</TableColumn>
+              <TableColumn key="actions" align="end">ACTIONS</TableColumn>
+            </TableHeader>
+            <TableBody 
+              emptyContent={"No users found matching your search."}
+              items={filteredUsers}
             >
-                    <span style={{
-                color: '#ffffff',
-                fontSize: '13px',
-                fontWeight: 'bold',
-                fontFamily: 'JetBrains Mono, monospace'
-              }}>
-                {user.username}
-                    </span>
-              
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{
-                  backgroundColor: userData.role === 'admin' ? '#e74c3c' : '#27ae60',
-                  color: '#ffffff',
-                  padding: '6px 14px',
-                  borderRadius: '20px',
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  fontFamily: 'JetBrains Mono, monospace',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}>
-                  {userData.role === 'admin' ? 'ADMIN' : 'USER'}
-                          </span>
-                
-                <div style={{ display: 'flex', gap: '6px' }}>
-                      <button
-                    onClick={() => handleDeleteUser(user._id)}
-                    disabled={user.username === username}
-                        style={{
-                      width: '32px',
-                      height: '32px',
-                      backgroundColor: user.username === username ? '#95a5a6' : '#ffffff',
-                          border: 'none',
-                      borderRadius: '10px',
-                      cursor: user.username === username ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <Image 
-                      src="/media/delete.svg" 
-                      alt="Delete" 
-                      width={16} 
-                      height={16} 
-                      style={{ 
-                        filter: user.username === username ? 'grayscale(100%)' : 'none' 
+              {(item) => (
+                <TableRow key={item._id}>
+                  {(columnKey) => <TableCell>{renderCell(item, columnKey)}</TableCell>}
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardBody>
+      </Card>
+
+      {/* Create/Edit User Modal */}
+      <Modal 
+        isOpen={isOpen} 
+        onOpenChange={onOpenChange}
+        placement="center"
+        backdrop="blur"
+        size="lg"
+        classNames={{
+          base: "bg-background border-divider border-1",
+          header: "border-b-[1px] border-divider",
+          footer: "border-t-[1px] border-divider",
+        }}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                {editingUser ? "Edit User Account" : "Create New User"}
+                <p className="text-tiny font-normal text-default-500">
+                  {editingUser 
+                    ? `Update settings for ${editingUser.username}` 
+                    : "Fill in the details to create a new system user."}
+                </p>
+              </ModalHeader>
+              <ModalBody className="py-6">
+                <div className="flex flex-col gap-6">
+                  {/* Photo Section */}
+                  <div className="flex flex-col items-center gap-4">
+                    <HeroUser
+                      name={formData.username || "User Preview"}
+                      description={formData.role}
+                      avatarProps={{
+                        src: selectedImage 
+                          ? URL.createObjectURL(selectedImage) 
+                          : (editingUser?.image 
+                            ? (editingUser.image.startsWith('http') ? editingUser.image : `https://dedicated-koala-14.convex.cloud/api/storage/get/${editingUser.image}`)
+                            : undefined),
+                        size: "lg",
+                        className: "w-24 h-24 text-large"
                       }}
                     />
-                      </button>
-                  
-                      <button
-                    onClick={() => handleEditUser(user)}
-                        style={{
-                      width: '32px',
-                      height: '32px',
-                      backgroundColor: '#ffffff',
-                          border: 'none',
-                      borderRadius: '10px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <Image src="/media/edit.svg" alt="Edit" width={16} height={16} />
-                      </button>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) setSelectedImage(file);
+                      }}
+                    />
+                    <Button 
+                      size="sm" 
+                      variant="flat" 
+                      onClick={() => fileInputRef.current?.click()}
+                      startContent={<FaPlus />}
+                    >
+                      {editingUser?.image || selectedImage ? "Change Photo" : "Upload Photo"}
+                    </Button>
+                  </div>
+
+                  <Divider />
+
+                  <div className="flex flex-col gap-4">
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                       <FaUser className="text-primary" /> Basic Information
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Input
+                        label="Username"
+                        placeholder="Enter username"
+                        variant="bordered"
+                        value={formData.username}
+                        onValueChange={(val) => setFormData(p => ({ ...p, username: val }))}
+                        isRequired
+                      />
+                      <Input
+                        label="Password"
+                        placeholder={editingUser ? "Leave empty to keep current" : "Enter password"}
+                        type="password"
+                        variant="bordered"
+                        value={formData.password}
+                        onValueChange={(val) => setFormData(p => ({ ...p, password: val }))}
+                        isRequired={!editingUser}
+                      />
                     </div>
-              </div>
-            </div>
-              );
-            })}
-      
-      {users.length === 0 && (
-          <div style={{ 
-            textAlign: 'center', 
-            color: '#95a5a6', 
-            padding: '40px',
-            fontFamily: 'JetBrains Mono, monospace'
-          }}>
-            No users found.
-        </div>
+                  </div>
+
+                  <Divider />
+
+                  <div className="flex flex-col gap-4">
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                       <FaShieldAlt className="text-secondary" /> Access Level
+                    </h3>
+                    <RadioGroup 
+                      label="Select User Role" 
+                      orientation="horizontal"
+                      value={formData.role}
+                      onValueChange={(val) => setFormData(p => ({ ...p, role: val }))}
+                    >
+                      <Radio 
+                        value="user" 
+                        description="Access to basic dashboard features"
+                        classNames={{
+                          base: "inline-flex m-0 bg-content2 hover:bg-content3 items-center justify-between flex-row-reverse max-w-full cursor-pointer rounded-lg gap-4 p-4 border-2 border-transparent data-[selected=true]:border-primary",
+                        }}
+                      >
+                        Standard User
+                      </Radio>
+                      <Radio 
+                        value="admin" 
+                        description="Full administrative access"
+                        classNames={{
+                          base: "inline-flex m-0 bg-content2 hover:bg-content3 items-center justify-between flex-row-reverse max-w-full cursor-pointer rounded-lg gap-4 p-4 border-2 border-transparent data-[selected=true]:border-primary",
+                        }}
+                      >
+                        Administrator
+                      </Radio>
+                      <Radio 
+                        value="dev" 
+                        description="Developer access & tools"
+                        classNames={{
+                          base: "inline-flex m-0 bg-content2 hover:bg-content3 items-center justify-between flex-row-reverse max-w-full cursor-pointer rounded-lg gap-4 p-4 border-2 border-transparent data-[selected=true]:border-primary",
+                        }}
+                      >
+                        DEV - Developer
+                      </Radio>
+                    </RadioGroup>
+                  </div>
+
+                  <Divider />
+
+                  <div className="flex flex-col gap-4">
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                       <FaPlug className="text-success" /> Plugin Permissions
+                    </h3>
+                    <CheckboxGroup
+                      label="Assigned Plugins"
+                      orientation="horizontal"
+                      value={formData.plugins}
+                      onValueChange={(val) => setFormData(p => ({ ...p, plugins: val as string[] }))}
+                      className="gap-2"
+                    >
+                      <div className="flex flex-wrap gap-2">
+                        {(allPlugins as PluginItem[] | undefined)?.map((plugin) => (
+                          <Checkbox 
+                            key={plugin.name} 
+                            value={plugin.name}
+                            classNames={{
+                              base: "inline-flex bg-content2 hover:bg-content3 items-center justify-start cursor-pointer rounded-lg gap-2 p-2 px-3 border-2 border-transparent data-[selected=true]:border-success",
+                              label: "text-tiny",
+                            }}
+                          >
+                            {plugin.name}
+                          </Checkbox>
+                        ))}
+                      </div>
+                    </CheckboxGroup>
+                    {!(allPlugins as any)?.length && (
+                      <p className="text-tiny text-default-400 italic">No plugins available in the system.</p>
+                    )}
+                  </div>
+                </div>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>
+                  Cancel
+                </Button>
+                <Button 
+                  color="primary" 
+                  onPress={handleSubmitUser} 
+                  isLoading={isSubmitting}
+                >
+                  {editingUser ? "Save Changes" : "Create Account"}
+                </Button>
+              </ModalFooter>
+            </>
           )}
-        </div>
+        </ModalContent>
+      </Modal>
     </div>
   );
 };

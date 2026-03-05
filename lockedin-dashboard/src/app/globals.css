@@ -1,11 +1,79 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@config "../../tailwind.config.ts";
+@source "../../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}";
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'SF Pro';
+  src: url('/media/SF-Pro.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
+  /* Default: Dark Mode (Arc / Login Match) */
+  --bg-app: #0a0f1e;
+  --bg-sidebar: rgba(10, 15, 30, 0.85);
+  --bg-card: rgba(255, 255, 255, 0.04);
+  --text-primary: rgba(255, 255, 255, 0.95);
+  --text-muted: rgba(255, 255, 255, 0.45);
+  --border-card: rgba(255, 255, 255, 0.1);
+  --border-hover: rgba(92, 149, 255, 0.3);
+  --shadow-card: 0 12px 48px rgba(0, 0, 0, 0.5);
+  --accent-blue: rgba(92, 149, 255, 0.9);
+  --accent-blue-dim: rgba(140, 190, 255, 0.1);
+  --nav-active-bg: rgba(255, 255, 255, 0.12);
+  --nav-active-text: #ffffff;
+  --nav-hover-bg: rgba(255, 255, 255, 0.07);
+  --glass-blur: blur(24px);
+
+  /* Legacy tokens (keep for compatibility) */
   --white: #FEFFFC;
   --dark-blue: #0F2044;
   --grey: #707B90;
   --red-pink: #DC362E;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-app: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%);
+    --bg-sidebar: #F2F3F7;
+    --bg-card: #FFFFFF;
+    --text-primary: #0F2044;
+    --text-muted: #707B90;
+    --border-card: rgba(0, 0, 0, 0.06);
+    --border-hover: rgba(62, 99, 221, 0.2);
+    --shadow-card: 0 8px 30px rgba(0, 0, 0, 0.08);
+    --accent-blue: #3E63DD;
+    --accent-blue-dim: rgba(62, 99, 221, 0.08);
+    --nav-active-bg: #E8EFFF;
+    --nav-active-text: #0F2044;
+    --nav-hover-bg: rgba(0, 0, 0, 0.04);
+    --glass-blur: none;
+    --bg-content-light: #FFFFFF;
+    --logo-filter: brightness(0) saturate(100%) invert(11%) sepia(34%) saturate(735%) hue-rotate(185deg) brightness(91%) contrast(97%);
+  }
+}
+
+/* Explicit class-based override if needed */
+body.light-mode {
+  --bg-app: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%);
+  --bg-sidebar: #F2F3F7;
+  --bg-card: #FFFFFF;
+  --text-primary: #0F2044;
+  --text-muted: #707B90;
+  --border-card: rgba(0, 0, 0, 0.06);
+  --border-hover: rgba(62, 99, 221, 0.2);
+  --shadow-card: 0 8px 30px rgba(0, 0, 0, 0.08);
+  --accent-blue: #3E63DD;
+  --accent-blue-dim: rgba(62, 99, 221, 0.08);
+  --nav-active-bg: #E8EFFF;
+  --nav-active-text: #0F2044;
+  --nav-hover-bg: rgba(0, 0, 0, 0.04);
+  --glass-blur: none;
+  --bg-content-light: #FFFFFF;
+  --logo-filter: brightness(0) saturate(100%) invert(11%) sepia(34%) saturate(735%) hue-rotate(185deg) brightness(91%) contrast(100%);
 }
 
 @theme inline {
@@ -17,12 +85,13 @@
 }
 
 body {
-  background: var(--white);
-  color: var(--dark-blue);
-  font-family: 'JetBrains Mono', monospace;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: 'SF Pro', -apple-system, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   margin: 0;
   padding: 0;
   overflow: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Dashboard Styles */
