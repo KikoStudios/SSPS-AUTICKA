@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import * as HeroUI from '@heroui/react';
+import * as ReactDOMClient from 'react-dom/client';
+import { createPluginSDK } from '@/lib/pluginSDK';
+import { getBackgroundPlugin } from './background-plugin-manager';
 
 interface PluginLoaderProps {
   pluginName: string;
@@ -69,7 +73,7 @@ const getPluginEmoji = (pluginName: string): string => {
   return '🔌';
 };
 
-export const PluginLoader: React.FC<PluginLoaderProps> = ({ pluginName }) => {
+export const PluginLoader: React.FC<PluginLoaderProps> = ({ pluginName, username, userData }) => {
   const [pluginComponent, setPluginComponent] = useState<React.ComponentType<{ username?: string, userData?: Record<string, unknown> }> | null>(null);
   // const [manifest, setManifest] = useState<PluginManifest | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -106,6 +110,32 @@ export const PluginLoader: React.FC<PluginLoaderProps> = ({ pluginName }) => {
          useEffect(() => {
            const loadPluginCode = async () => {
              try {
+               // Check if plugin is already loaded in background
+               const backgroundInstance = getBackgroundPlugin(pluginName);
+               if (backgroundInstance && containerRef.current) {
+                 console.log(`[PluginLoader] Reusing background plugin: ${pluginName}`);
+                 
+                 // Get or create the hidden container
+                 let hiddenContainer = document.getElementById(`plugin-bg-${pluginName}`);
+                 if (!hiddenContainer) {
+                   hiddenContainer = document.createElement('div');
+                   hiddenContainer.id = `plugin-bg-${pluginName}`;
+                   hiddenContainer.style.display = 'none';
+                   document.body.appendChild(hiddenContainer);
+                 }
+                 
+                 // Create UI in the visible container
+                 if (typeof backgroundInstance.createUI === 'function') {
+                   backgroundInstance.createUI(containerRef.current);
+                 }
+                 
+                 setPluginInstance(backgroundInstance);
+                 return;
+               }
+
+               // Plugin not in background, load it normally
+               console.log(`[PluginLoader] Loading plugin from scratch: ${pluginName}`);
+
                // Remove ES6 export statements and convert to browser-compatible code
                let processedCode = coreContent;
                
@@ -138,6 +168,14 @@ export const PluginLoader: React.FC<PluginLoaderProps> = ({ pluginName }) => {
                 if (typeof window !== 'undefined' && !(window as unknown as Record<string, unknown>).convexClient) {
                  console.warn('Convex client not available in plugin loader');
                }
+
+               // Expose runtime libraries for plugins
+               (window as unknown as Record<string, unknown>).PluginRuntime = {
+                 React,
+                 ReactDOMClient,
+                 HeroUI,
+               };
+               (window as unknown as Record<string, unknown>).HeroUI = HeroUI;
                
                // Execute the processed code
                eval(wrappedCode);
@@ -147,9 +185,29 @@ export const PluginLoader: React.FC<PluginLoaderProps> = ({ pluginName }) => {
                   const instance = new (((window as unknown as Record<string, unknown>).TempTestPlugin) as new () => Record<string, unknown>)();
                  setPluginInstance(instance);
                  
+                 // Create SDK instance for this plugin
+                 const pluginContext = {
+                   pluginName,
+                   username,
+                   userData,
+                   convexClient: (window as unknown as Record<string, unknown>).convexClient,
+                 };
+                 const sdkInstance = createPluginSDK(pluginContext);
+                 
+                 // Expose SDK instance globally for plugins to use
+                 (window as unknown as Record<string, unknown>).PluginSDK = sdkInstance;
+                 (instance as any).PluginSDK = sdkInstance;
+                 
                  // Initialize the plugin
                  if (typeof instance.initialize === 'function') {
-                   instance.initialize();
+                   instance.initialize({
+                     pluginName,
+                     username,
+                     userData,
+                     convexClient: (window as unknown as Record<string, unknown>).convexClient,
+                     runtime: (window as unknown as Record<string, unknown>).PluginRuntime,
+                     sdkFactory: createPluginSDK,
+                   });
                  }
                  
                  // Create the plugin UI if the method exists
@@ -163,6 +221,7 @@ export const PluginLoader: React.FC<PluginLoaderProps> = ({ pluginName }) => {
                  console.error('Plugin loading failed:', (window as unknown as Record<string, unknown>).TempTestPluginError);
                  delete (window as unknown as Record<string, unknown>).TempTestPluginError;
                }
+             
                
              } catch (error) {
                console.error('Plugin loading error:', error);
@@ -192,7 +251,7 @@ export const PluginLoader: React.FC<PluginLoaderProps> = ({ pluginName }) => {
       setError(`Failed to load plugin: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setLoading(false);
     }
-  }, [pluginData?.files]);
+  }, [pluginData?.files, pluginName, username, userData]);
 
   useEffect(() => {
     if (!pluginData) {

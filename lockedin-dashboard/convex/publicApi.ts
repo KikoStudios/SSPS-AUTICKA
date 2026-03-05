@@ -1,4 +1,5 @@
 import { query } from "./_generated/server";
+import { v } from "convex/values";
 
 /**
  * Check if the instance has any users registered.
@@ -19,3 +20,32 @@ export const hasAnyUsers = query({
         return false;
     },
 });
+
+    /**
+     * Validate an API key
+     * Used by external API endpoints to authenticate requests
+     */
+    export const validateApiKey = query({
+        args: {
+            key: v.string(),
+        },
+        handler: async (ctx, args) => {
+            const apiKey = await ctx.db
+                .query("apiKeys")
+                .withIndex("by_key", (q) => q.eq("key", args.key))
+                .first();
+
+            if (!apiKey) {
+                return false;
+            }
+
+            // Check if key is active
+            if (!apiKey.isActive) {
+                return false;
+            }
+
+            // Update last used timestamp (we'll do this in a mutation, not here)
+            // For now, just return validity
+            return true;
+        },
+    });

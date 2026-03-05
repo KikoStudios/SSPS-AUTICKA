@@ -1,5 +1,6 @@
 import { pageRegistry, createPageComponent } from './page-registry';
 import { AdminAccountManagementPage } from './admin-pages';
+import { ApiKeysPage } from './api-keys-page';
 import { PluginPublisherPage } from './plugin-publisher';
 import AccountApprovalPage from './pages/admin-account-approval';
 
@@ -12,6 +13,7 @@ export function initializeDefaultPages() {
   // Create emergency-only pages (not added to main navigation)
   const emergencyPages = [
     createPageComponent('admin-accounts', 'Account Management', '👥', AdminAccountManagementPage, ['admin']),
+    createPageComponent('admin-api-keys', 'API Keys', '🔑', ApiKeysPage, ['admin']),
     createPageComponent('admin-approvals', 'Account Approvals', '✓', AccountApprovalPage, ['admin']),
     createPageComponent('plugin-publisher', 'Plugin Publisher', '🔌', PluginPublisherPage),
   ];

@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "skills": {
+    "convex": {
+      "source": "waynesutton/convexskills",
+      "sourceType": "github",
+      "computedHash": "0a9f0151c7776f13ab3affca28a04d55fcb4ea3af9f53eeadebe934552975a8f"
+    },
+    "file-organizer": {
+      "source": "davepoon/buildwithclaude",
+      "sourceType": "github",
+      "computedHash": "0b698d188188edc6d06cea68f2ae85268746caf30630c07d2681278a2847f900"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "516bd2154eb843a8240e43d5b285229129853114ad7075a5e141e1c08e408c84"
+    },
+    "heroui-react": {
+      "source": "heroui-inc/heroui",
+      "sourceType": "github",
+      "computedHash": "fdff93791a3f712f622cb4557f04e1cafcf637585a3c2df84f743f0d387217b4"
+    }
+  }
+}

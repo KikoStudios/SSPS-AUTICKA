@@ -1,0 +1,11 @@
+{
+  "name": "parking-dashboard",
+  "version": "1.0.0",
+  "author": "Fiber Demo",
+  "description": "Real-time parking availability dashboard with Fiber. Demonstrates data storage, shared data publishing, HeroUI components, and role-based features.",
+  "main": "core-parking-dashboard.js",
+  "iconLight": "icon-light-parking-dashboard.svg",
+  "iconDark": "icon-dark-parking-dashboard.svg",
+  "apiEndpoints": ["getParkingStatus", "reportOccupancy"],
+  "permissions": ["read", "write"]
+}

@@ -1,0 +1,27 @@
+{
+  "name": "reactor-core",
+  "version": "2.0.0",
+  "title": "Reactor Core",
+  "description": "⚛️ Interactive energy reactor system that broadcasts real-time metrics and accepts remote control commands from other plugins",
+  "icon": "⚛️",
+  "author": "Dashboard Dev",
+  "category": "system",
+  "tags": ["reactor", "energy", "visualization", "real-time", "interactive"],
+  "apiEndpoints": [
+    "getReactorStatus",
+    "setReactorLevel",
+    "emergency_cooldown",
+    "boost_power"
+  ],
+  "permissions": ["data-access", "external-communication", "real-time-updates"],
+  "features": {
+    "real-time": true,
+    "interactive": true,
+    "visual": true,
+    "broadcasts": ["reactor_status"]
+  },
+  "changelog": [
+    "v2.0.0: Interactive energy reactor with real-time broadcasting",
+    "v1.0.0: Initial release"
+  ]
+}

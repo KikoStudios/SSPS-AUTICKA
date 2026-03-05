@@ -6,9 +6,12 @@ import { useAuth } from '../auth-context';
 import { getNavigationItems, getPageComponent, registerPage, createPageComponent } from './nav-config';
 import { initializeAllPages } from './page-initializer';
 import { PluginLoader, getPluginEmoji } from './plugin-loader';
+import { BackgroundPluginManager } from './background-plugin-manager';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import styles from './dashboard.module.css';
+import Image from 'next/image';
+import { DashboardSidebar } from '@/components/dashboard-sidebar';
 
 // Component to render plugin icons dynamically
 function PluginIcon({ pluginName, fallback }: { pluginName: string, fallback: string }) {
@@ -47,6 +50,14 @@ interface NavigationItem {
   permissions?: string[];
 }
 
+interface PluginRedirectEventDetail {
+  targetPlugin: string;
+  fromPlugin?: string;
+  trigger?: string;
+  payload?: unknown;
+  timestamp?: number;
+}
+
 export default function DashboardPage() {
   const { isAuthenticated, username, userData, logout, isLoading } = useAuth();
   const router = useRouter();
@@ -54,8 +65,30 @@ export default function DashboardPage() {
   const [activePage, setActivePage] = useState<string>('welcome');
   const [pluginsLoaded, setPluginsLoaded] = useState(false);
   const [authVerified, setAuthVerified] = useState(false);
-  // Admin can disable plugins through their own user account management
-  // This will be handled through the normal user management interface
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  // Load theme from preference
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('dashboard-theme') as 'dark' | 'light';
+    if (savedTheme) {
+      setTheme(savedTheme);
+      if (savedTheme === 'light') document.body.classList.add('light-mode');
+    } else if (window.matchMedia('(prefers-color-scheme: light)').matches) {
+      setTheme('light');
+      document.body.classList.add('light-mode');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    localStorage.setItem('dashboard-theme', newTheme);
+    if (newTheme === 'light') {
+      document.body.classList.add('light-mode');
+    } else {
+      document.body.classList.remove('light-mode');
+    }
+  };
 
   // NEW: Check if user is approved to access dashboard
   useEffect(() => {
@@ -93,6 +126,37 @@ export default function DashboardPage() {
   const userPluginNames = useMemo(() => {
     return userData?.plugins ? userData.plugins.split(',').map((name: string) => name.trim()).filter(Boolean) : [];
   }, [userData?.plugins]);
+
+  useEffect(() => {
+    const handlePluginRedirect = (event: Event) => {
+      const customEvent = event as CustomEvent<PluginRedirectEventDetail>;
+      const detail = customEvent.detail;
+
+      if (!detail?.targetPlugin) {
+        return;
+      }
+
+      const targetPage = `plugin-${detail.targetPlugin}`;
+      const targetExists = navItems.some((item) => item.id === targetPage);
+      if (!targetExists) {
+        console.warn('[DashboardPage] Redirect target not available in navigation:', detail.targetPlugin);
+        return;
+      }
+
+      console.log('[DashboardPage] Plugin redirect:', {
+        from: detail.fromPlugin,
+        to: detail.targetPlugin,
+        trigger: detail.trigger,
+      });
+
+      setActivePage(targetPage);
+    };
+
+    window.addEventListener('plugin:redirect', handlePluginRedirect as EventListener);
+    return () => {
+      window.removeEventListener('plugin:redirect', handlePluginRedirect as EventListener);
+    };
+  }, [navItems]);
 
   // Fetch user's plugins from database
   const userPlugins = useQuery(
@@ -160,7 +224,7 @@ export default function DashboardPage() {
             const allItems = getNavigationItems();
             const filteredItems = allItems.filter(item => {
               // Skip emergency/hard-coded pages from main navigation
-              if (item.id === 'admin-accounts' || item.id === 'plugin-publisher' || item.id === 'admin-approvals') {
+              if (item.id === 'admin-accounts' || item.id === 'plugin-publisher' || item.id === 'admin-approvals' || item.id === 'admin-api-keys') {
                 return false;
               }
 
@@ -203,6 +267,14 @@ export default function DashboardPage() {
   // Initialize pages and navigation - run only when plugins are loaded
   useEffect(() => {
     if (pluginsLoaded) {
+      // Clean up non-existent plugins from user profile
+      if (userData && (userData as any)._id) {
+        fetch('/api/clean-invalid-plugins', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: (userData as any)._id }),
+        }).catch(err => console.error('Failed to clean invalid plugins:', err));
+      }
       // Initialize all pages (emergency pages only - not for main navigation)
       initializeAllPages();
 
@@ -211,7 +283,7 @@ export default function DashboardPage() {
 
       const filteredItems = allItems.filter(item => {
         // Skip emergency/hard-coded pages from main navigation
-        if (item.id === 'admin-accounts' || item.id === 'plugin-publisher' || item.id === 'admin-approvals') {
+        if (item.id === 'admin-accounts' || item.id === 'plugin-publisher' || item.id === 'admin-approvals' || item.id === 'admin-api-keys') {
           return false;
         }
 
@@ -245,7 +317,7 @@ export default function DashboardPage() {
   // Auto-select first available page when navigation items change - prevent loops
   useEffect(() => {
     // Special pages that shouldn't be auto-redirected from
-    const specialPages = ['admin-accounts', 'plugin-publisher', 'admin-approvals'];
+    const specialPages = ['admin-accounts', 'plugin-publisher', 'admin-approvals', 'admin-api-keys'];
 
     if (navItems.length > 0 && activePage === 'welcome') {
       // Only auto-select if we're still on the default welcome page
@@ -296,34 +368,35 @@ export default function DashboardPage() {
           alignItems: 'center'
         }}>
           <h1 style={{
-            fontSize: '48px',
-            marginBottom: '20px',
+            fontSize: '40px',
+            marginBottom: '12px',
             fontFamily: 'JetBrains Mono, monospace',
-            color: 'var(--dark-blue)',
+            color: 'rgba(255,255,255,0.92)',
             fontWeight: 'bold',
             textTransform: 'uppercase',
-            letterSpacing: '2px'
+            letterSpacing: '3px'
           }}>
             LOCKEDIN
           </h1>
           <h2 style={{
-            fontSize: '24px',
-            marginBottom: '30px',
-            color: 'var(--grey)',
-            fontFamily: 'JetBrains Mono, monospace'
+            fontSize: '18px',
+            marginBottom: '24px',
+            color: 'rgba(140,190,255,0.75)',
+            fontFamily: 'JetBrains Mono, monospace',
+            fontWeight: 400
           }}>
             {username ? `Welcome, ${username}!` : 'Welcome to LockedIN'}
           </h2>
           {userData && (
             <div style={{
-              fontSize: '16px',
+              fontSize: '14px',
               lineHeight: '1.6',
-              color: 'var(--grey)',
+              color: 'rgba(255,255,255,0.4)',
               fontFamily: 'JetBrains Mono, monospace'
             }}>
-              <p><strong style={{ color: 'var(--dark-blue)' }}>Role:</strong> {userData.role || 'User'}</p>
+              <p><strong style={{ color: 'rgba(220,242,255,0.75)' }}>Role:</strong> {userData.role || 'User'}</p>
               {userData.createdAt && (
-                <p><strong style={{ color: 'var(--dark-blue)' }}>Member since:</strong> {new Date(userData.createdAt).toLocaleDateString()}</p>
+                <p><strong style={{ color: 'rgba(220,242,255,0.75)' }}>Member since:</strong> {new Date(userData.createdAt).toLocaleDateString()}</p>
               )}
             </div>
           )}
@@ -343,14 +416,16 @@ export default function DashboardPage() {
         alignItems: 'center'
       }}>
         <h2 style={{
-          fontSize: '32px',
-          color: 'var(--dark-blue)',
-          fontFamily: 'JetBrains Mono, monospace'
+          fontSize: '28px',
+          color: 'rgba(255,255,255,0.6)',
+          fontFamily: 'JetBrains Mono, monospace',
+          fontWeight: 400
         }}>Page not found: {activePage}</h2>
         <p style={{
-          fontSize: '16px',
-          color: 'var(--grey)',
-          fontFamily: 'JetBrains Mono, monospace'
+          fontSize: '13px',
+          color: 'rgba(255,255,255,0.3)',
+          fontFamily: 'JetBrains Mono, monospace',
+          marginTop: '12px'
         }}>Available pages: {navItems.map(item => item.id).join(', ')}</p>
       </div>
     );
@@ -364,22 +439,22 @@ export default function DashboardPage() {
         justifyContent: 'center',
         alignItems: 'center',
         height: '100vh',
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '18px',
-        color: '#666',
-        backgroundColor: '#f9f9f9'
+        fontFamily: "'SF Pro', -apple-system, system-ui, sans-serif",
+        fontSize: '15px',
+        color: 'rgba(255,255,255,0.45)',
+        backgroundColor: '#0a0f1e'
       }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{
-            width: '40px',
-            height: '40px',
-            border: '4px solid #f3f3f3',
-            borderTop: '4px solid #007bff',
+            width: '36px',
+            height: '36px',
+            border: '3px solid rgba(255,255,255,0.08)',
+            borderTop: '3px solid rgba(92, 149, 255, 0.8)',
             borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            margin: '0 auto 20px'
+            animation: 'spin 0.9s linear infinite',
+            margin: '0 auto 16px'
           }}></div>
-          <p>Ověřování přístupu...</p>
+          <p style={{ margin: 0, letterSpacing: '0.5px' }}>Ověřování přístupu...</p>
         </div>
         <style jsx>{`
           @keyframes spin {
@@ -393,89 +468,42 @@ export default function DashboardPage() {
 
   return (
     <div className={styles.dashboardContainer}>
-      {/* Sidebar */}
-      <div className={styles.sidebar}>
-        {/* Logo/Branding */}
-        <div className={styles.logoContainer}>
-          <div className={styles.logo}>
-            <span className={styles.logoLocked}>LOCKED</span>
-            <span className={styles.logoIn}>IN</span>
-          </div>
-        </div>
+      {/* Load all enabled plugins in background for inter-plugin communication */}
+      {userPlugins && userPlugins.length > 0 && (
+        <BackgroundPluginManager
+          plugins={userPlugins}
+          username={username}
+          userData={userData}
+        />
+      )}
 
-        {/* Navigation Area */}
-        <div className={styles.navigation}>
-          {/* Primary Navigation - Counter and Parking */}
-          <div className={styles.navSection}>
-            <div className={styles.navMenu}>
-              {navItems.map((item) => (
-                <button
-                  key={item.id}
-                  className={`${styles.navItem} ${activePage === item.id ? styles.active : ''}`}
-                  onClick={() => setActivePage(item.id)}
-                >
-                  <span className={styles.navIcon}>
-                    {item.icon.startsWith('icon-') ? (
-                      <PluginIcon
-                        pluginName={item.icon.replace('icon-', '')}
-                        fallback={getPluginEmoji(item.icon.replace('icon-', ''))}
-                      />
-                    ) : (
-                      item.icon
-                    )}
-                  </span>
-                  <span className={styles.navLabel}>{item.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Admin Section */}
-        <div className={styles.adminSection}>
-          {/* Management Buttons */}
-          {userData?.role === 'admin' && (
-            <div className={styles.managementButtons}>
-              <button
-                className={`${styles.managementButton} ${activePage === 'admin-accounts' ? styles.active : ''}`}
-                onClick={() => setActivePage('admin-accounts')}
-              >
-                <span className={styles.managementIcon}>
-                  <img src="/media/Manange.svg" alt="Manage" style={{ width: '28px', height: '28px' }} />
-                </span>
-                <span className={styles.managementLabel}>Manange</span>
-              </button>
-              <button
-                className={`${styles.managementButton} ${activePage === 'plugin-publisher' ? styles.active : ''}`}
-                onClick={() => setActivePage('plugin-publisher')}
-              >
-                <span className={styles.managementIcon}>
-                  <img src="/media/plugins.svg" alt="Plugins" style={{ width: '28px', height: '28px' }} />
-                </span>
-                <span className={styles.managementLabel}>Plugins</span>
-              </button>
-              <button
-                className={`${styles.managementButton} ${activePage === 'admin-approvals' ? styles.active : ''}`}
-                onClick={() => setActivePage('admin-approvals')}
-              >
-                <span className={styles.managementIcon}>✓</span>
-                <span className={styles.managementLabel}>Approvals</span>
-              </button>
-            </div>
-          )}
-
-          {/* Admin Button with Logout */}
-          <button
-            className={`${styles.adminButton} ${styles.active}`}
-            onClick={handleLogout}
-          >
-            <span className={styles.adminLabel}>{username || 'admin'}</span>
-            <span className={styles.logoutIcon}>
-              <img src="/media/logout_icon.svg" alt="Logout" style={{ width: '20px', height: '20px' }} />
-            </span>
-          </button>
-        </div>
-      </div>
+      {/* Sidebar using HeroUI component */}
+      <DashboardSidebar
+        logoSrc="/media/logo-v2.svg"
+        navItems={navItems}
+        activePage={activePage}
+        onNavigation={setActivePage}
+        username={username}
+        userRole={userData?.role ? userData.role.charAt(0).toUpperCase() + userData.role.slice(1) : 'User'}
+        isAdmin={userData?.role === 'admin'}
+        theme={theme}
+        onThemeToggle={toggleTheme}
+        onLogout={handleLogout}
+        renderIcon={(icon) => {
+          if (icon.startsWith('icon-')) {
+            const pluginName = icon.replace('icon-', '');
+            return (
+              <span className={styles.navIcon}>
+                <PluginIcon
+                  pluginName={pluginName}
+                  fallback={getPluginEmoji(pluginName)}
+                />
+              </span>
+            );
+          }
+          return <span className={styles.navIcon}>{icon}</span>;
+        }}
+      />
 
       {/* Main Content */}
       <div className={styles.mainContent}>

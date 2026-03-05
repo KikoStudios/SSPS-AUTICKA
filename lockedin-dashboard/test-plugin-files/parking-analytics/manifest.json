@@ -1,0 +1,10 @@
+{
+  "name": "parking-analytics",
+  "version": "1.0.0",
+  "author": "Fiber Demo",
+  "description": "Analytics viewer for parking data. Demonstrates reading shared data from other plugins, file storage for exports, and role-based features. Subscribe to parking-dashboard updates!",
+  "main": "core-parking-analytics.js",
+  "iconLight": "icon-light-parking-analytics.svg",
+  "iconDark": "icon-dark-parking-analytics.svg",
+  "permissions": ["read"]
+}

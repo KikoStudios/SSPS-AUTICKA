@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { Id } from '../../../../convex/_generated/dataModel';
+import { Card, CardBody, Divider, Spacer, Button, ButtonGroup, Spinner } from '@heroui/react';
+import { SuccessButton, DangerButton, AlertBox } from '@/components/heroui-components';
 
 interface PendingAccount {
   _id: Id<'users'>;
@@ -64,136 +66,76 @@ export default function AccountApprovalPage() {
 
   if (pendingAccounts === undefined) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <p>Načítání...</p>
+      <div className="flex justify-center items-center p-10">
+        <Spinner label="Načítání..." />
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '40px', maxWidth: '1000px', margin: '0 auto' }}>
-      <h1 style={{ fontSize: '32px', marginBottom: '10px', fontWeight: 'bold' }}>
-        Schvalování účtů
-      </h1>
-      <p style={{ color: '#666', marginBottom: '30px' }}>
-        Spravujte žádosti o vytvoření nových účtů
-      </p>
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+      <div>
+        <h1 className="text-4xl font-bold mb-2">Schvalování účtů</h1>
+        <p className="text-gray-500">Spravujte žádosti o vytvoření nových účtů</p>
+      </div>
 
       {message && (
-        <div
-          style={{
-            padding: '15px 20px',
-            marginBottom: '20px',
-            borderRadius: '8px',
-            backgroundColor: message.type === 'success' ? '#d4edda' : '#f8d7da',
-            color: message.type === 'success' ? '#155724' : '#721c24',
-            border: `1px solid ${message.type === 'success' ? '#c3e6cb' : '#f5c6cb'}`,
-          }}
-        >
-          {message.text}
-        </div>
+        <>
+          <AlertBox type={message.type} message={message.text.replace('✅ ', '').replace('❌ ', '')} />
+          <Spacer y={2} />
+        </>
       )}
 
       {pendingAccounts.length === 0 ? (
-        <div
-          style={{
-            padding: '60px',
-            textAlign: 'center',
-            backgroundColor: '#f8f9fa',
-            borderRadius: '12px',
-            border: '2px dashed #dee2e6',
-          }}
-        >
-          <p style={{ fontSize: '18px', color: '#6c757d' }}>
-            ✅ Žádné čekající žádosti
-          </p>
-          <p style={{ fontSize: '14px', color: '#adb5bd', marginTop: '10px' }}>
-            Nové účty se objeví zde po registraci
-          </p>
-        </div>
+        <Card className="bg-gray-50">
+          <CardBody className="text-center py-12">
+            <p className="text-lg font-semibold">✅ Žádné čekající žádosti</p>
+            <p className="text-gray-400 mt-2">Nové účty se objeví zde po registraci</p>
+          </CardBody>
+        </Card>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+        <div className="space-y-3">
           {pendingAccounts.map((account) => (
-            <div
-              key={account._id}
-              style={{
-                padding: '20px',
-                backgroundColor: '#fff',
-                border: '1px solid #dee2e6',
-                borderRadius: '8px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-              }}
-            >
-              <div>
-                <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '5px' }}>
-                  {account.username}
-                </h3>
-                <p style={{ fontSize: '14px', color: '#6c757d' }}>
-                  Vytvořeno: {new Date(account.createdAt).toLocaleString('cs-CZ')}
-                </p>
-              </div>
+            <Card key={account._id} className="shadow-sm">
+              <CardBody className="flex flex-row justify-between items-center py-4">
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold">{account.username}</h3>
+                  <p className="text-sm text-gray-500">
+                    Vytvořeno: {new Date(account.createdAt).toLocaleString('cs-CZ')}
+                  </p>
+                </div>
 
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button
-                  onClick={() => handleApprove(account._id, account.username)}
-                  disabled={processing === account._id}
-                  style={{
-                    padding: '10px 20px',
-                    backgroundColor: processing === account._id ? '#ccc' : '#28a745',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: processing === account._id ? 'not-allowed' : 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    transition: 'background-color 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (processing !== account._id) {
-                      e.currentTarget.style.backgroundColor = '#218838';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (processing !== account._id) {
-                      e.currentTarget.style.backgroundColor = '#28a745';
-                    }
-                  }}
-                >
-                  {processing === account._id ? '⏳ Zpracování...' : '✓ Schválit'}
-                </button>
+                <ButtonGroup className="gap-2">
+                  <SuccessButton
+                    onClick={() => handleApprove(account._id, account.username)}
+                    disabled={processing === account._id}
+                    size="sm"
+                  >
+                    {processing === account._id ? (
+                      <>
+                        <Spinner size="sm" color="current" /> Zpracování...
+                      </>
+                    ) : (
+                      '✓ Schválit'
+                    )}
+                  </SuccessButton>
 
-                <button
-                  onClick={() => handleReject(account._id, account.username)}
-                  disabled={processing === account._id}
-                  style={{
-                    padding: '10px 20px',
-                    backgroundColor: processing === account._id ? '#ccc' : '#dc3545',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: processing === account._id ? 'not-allowed' : 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    transition: 'background-color 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (processing !== account._id) {
-                      e.currentTarget.style.backgroundColor = '#c82333';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (processing !== account._id) {
-                      e.currentTarget.style.backgroundColor = '#dc3545';
-                    }
-                  }}
-                >
-                  {processing === account._id ? '⏳ Zpracování...' : '✗ Odmítnout'}
-                </button>
-              </div>
-            </div>
+                  <DangerButton
+                    onClick={() => handleReject(account._id, account.username)}
+                    disabled={processing === account._id}
+                    size="sm"
+                  >
+                    {processing === account._id ? (
+                      <>
+                        <Spinner size="sm" color="current" /> Zpracování...
+                      </>
+                    ) : (
+                      '✗ Odmítnout'
+                    )}
+                  </DangerButton>
+                </ButtonGroup>
+              </CardBody>
+            </Card>
           ))}
         </div>
       )}

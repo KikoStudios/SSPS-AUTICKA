@@ -6,8 +6,9 @@ import { useAuthActions } from '@convex-dev/auth/react';
 import { useConvexAuth, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import styles from './login.module.css';
-
 import Image from 'next/image';
+import { Input, Spacer } from '@heroui/react';
+import { PrimaryButton, SecondaryButton, AlertBox, FormContainer } from '@/components/heroui-components';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -15,6 +16,12 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
+
+  const loginInputClassNames = {
+    inputWrapper:
+      'bg-default-100/85 border-default-300/80 data-[hover=true]:bg-default-100 data-[focus=true]:bg-default-100',
+    input: 'text-foreground placeholder:text-default-500',
+  };
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -152,85 +159,89 @@ export default function LoginPage() {
             priority
           />
         </div>
-        <form className={styles.form} onSubmit={handleSubmit}>
-          {/* Error Message */}
+        <FormContainer onSubmit={handleSubmit}>
+          {/* Error/Success Message */}
           {error && (
-            <div className={styles.errorMessage}>
-              {error}
-            </div>
+            <>
+              <AlertBox 
+                type={error.includes('✅') ? 'success' : 'error'} 
+                message={error.replace('✅ ', '').replace('❌ ', '')} 
+              />
+              <Spacer y={2} />
+            </>
           )}
 
           {/* Username Input */}
-          <div className={styles.inputGroup}>
-            <input
-              id="username"
-              name="username"
-              type="text"
-              autoComplete="username"
-              required
-              className={styles.input}
-              placeholder="uživatelské jméno"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              disabled={isLoading}
-            />
-          </div>
+          <Input
+            id="username"
+            name="username"
+            placeholder="uživatelské jméno"
+            type="text"
+            variant="bordered"
+            size="lg"
+            radius="md"
+            fullWidth
+            classNames={loginInputClassNames}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            disabled={isLoading}
+            required
+            autoComplete="username"
+          />
 
           {/* Password Input */}
-          <div className={styles.inputGroup}>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              className={styles.input}
-              placeholder="heslo"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading}
-            />
-          </div>
+          <Input
+            id="password"
+            name="password"
+            placeholder="heslo"
+            type="password"
+            variant="bordered"
+            size="lg"
+            radius="md"
+            fullWidth
+            classNames={loginInputClassNames}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={isLoading}
+            required
+            autoComplete="current-password"
+          />
 
           {/* Login Button */}
-          <button
+          <PrimaryButton
             type="submit"
-            className={styles.loginButton}
             disabled={isLoading}
+            className="mt-4"
           >
             {isLoading
               ? (mode === 'signUp' ? 'CREATING ACCOUNT...' : 'LOGGING IN...')
               : (mode === 'signUp' ? 'CREATE ACCOUNT' : 'LOGIN')
             }
-          </button>
+          </PrimaryButton>
 
-          {/* Toggle between Sign In and Sign Up - Always visible */}
-          <button
+          {/* Toggle between Sign In and Sign Up */}
+          <SecondaryButton
             type="button"
             onClick={() => setMode(mode === 'signIn' ? 'signUp' : 'signIn')}
-            style={{
-              marginTop: '10px',
-              background: 'transparent',
-              border: 'none',
-              color: '#666',
-              cursor: 'pointer',
-              fontSize: '14px',
-              textDecoration: 'underline',
-            }}
+            className="mt-2 w-full"
+            variant="light"
           >
             {mode === 'signIn'
               ? 'Need to create an account? Sign up'
               : 'Already have an account? Sign in'
             }
-          </button>
+          </SecondaryButton>
+        </FormContainer>
 
-          {/* Show message about approval if signing up */}
-          {mode === 'signUp' && (
-            <div style={{ marginTop: '10px', color: '#999', fontSize: '12px' }}>
-              New accounts require admin approval to login
-            </div>
-          )}
-        </form>
+        {/* Verification Info - Only show during signup */}
+        {mode === 'signUp' && (
+          <div className="mt-4">
+            <AlertBox 
+              type="info" 
+              message="You must be verified by an administrator before you can log in. New accounts require approval." 
+            />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -3,6 +3,11 @@ import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import bcrypt from "bcryptjs";
 
+// Upload URL for profile pictures
+export const generateUploadUrl = mutation(async (ctx) => {
+  return await ctx.storage.generateUploadUrl();
+});
+
 // Action to hash password (can use bcryptjs here)
 export const hashPassword = action({
   args: {
@@ -301,10 +306,11 @@ export const updateUserAction = action({
     userId: v.string(), // ID string
     username: v.optional(v.string()),
     password: v.optional(v.string()),
+    image: v.optional(v.string()),
     usrData: v.string(),
   },
   handler: async (ctx, args) => {
-    const { userId, username, password, usrData } = args;
+    const { userId, username, password, image, usrData } = args;
 
     const updateData: any = { usrData };
 
@@ -312,6 +318,10 @@ export const updateUserAction = action({
       updateData.username = username;
       updateData.email = username; // Sync email
       updateData.name = username; // Sync name
+    }
+
+    if (image !== undefined) {
+      updateData.image = image;
     }
 
     let hashedPassword;
@@ -336,6 +346,7 @@ export const updateUser = mutation({
     email: v.optional(v.string()),
     name: v.optional(v.string()),
     newHashPassword: v.optional(v.string()), // Passed if password changed
+    image: v.optional(v.string()),
     usrData: v.string(),
   },
   handler: async (ctx, args) => {
@@ -397,6 +408,21 @@ export const uploadPluginAction: any = action({
     // Check if plugin already exists
     const existingPlugin = await ctx.runQuery((internal as any).context.getPluginByName, { name: pluginName });
 
+    // Parse manifest to extract apiEndpoints
+    let apiEndpoints: string[] = [];
+    if (manifestFile) {
+      try {
+        const manifestContent = atob(manifestFile);
+        const manifest = JSON.parse(manifestContent);
+        apiEndpoints = manifest.apiEndpoints || [];
+      } catch (error) {
+        console.error('Failed to parse manifest for apiEndpoints:', error);
+      }
+    } else if (existingPlugin) {
+      // Preserve existing endpoints if manifest not updated
+      apiEndpoints = existingPlugin.apiEndpoints || [];
+    }
+
     // Upload files to storage (only for files that were provided)
     let manifestFileId: any;
     let coreFileId: any;
@@ -436,6 +462,7 @@ export const uploadPluginAction: any = action({
         version,
         description,
         uploadDate: Date.now(),
+        apiEndpoints,
       };
 
       // Only update file IDs for files that were uploaded
@@ -476,6 +503,7 @@ export const uploadPluginAction: any = action({
         iconFileId,
         uploadDate: Date.now(),
         isActive: true,
+        apiEndpoints,
       });
     }
 
@@ -494,6 +522,7 @@ export const createPlugin = mutation({
     iconFileId: v.optional(v.id("_storage")),
     uploadDate: v.number(),
     isActive: v.boolean(),
+    apiEndpoints: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("plugins", args);
@@ -661,6 +690,7 @@ export const updatePlugin = mutation({
     coreFileId: v.optional(v.id("_storage")),
     iconFileId: v.optional(v.id("_storage")),
     uploadDate: v.number(),
+    apiEndpoints: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const { pluginId, ...updateData } = args;
@@ -1100,26 +1130,136 @@ export const rejectAccount = mutation({
 });
 
 /**
- * Check if user is approved (used during login)
+ * Get file URL from file ID
  */
-export const isUserApproved = query({
+export const getFileUrl = query({
   args: {
-    username: v.string(),
+    fileId: v.string(),
   },
   handler: async (ctx, args) => {
-    const user = await ctx.db
-      .query("users")
-      .withIndex("username", (q) => q.eq("username", args.username))
-      .first();
-
-    if (!user) {
-      return { exists: false, approved: false };
+    try {
+      const url = await ctx.storage.getUrl(args.fileId);
+      return url;
+    } catch (error) {
+      console.error(`Failed to get file URL for ${args.fileId}:`, error);
+      return null;
     }
+  },
+});
 
-    return { 
-      exists: true, 
-      approved: user.isApproved !== false, // false if explicitly set to false, true otherwise
-      userId: user._id,
-    };
+/**
+ * Remove non-existent plugins from user's plugin list
+ */
+export const removeNonExistentPlugins = mutation({
+  args: {
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const user = await ctx.db.get(args.userId as any) as any;
+      if (!user || !user.usrData) {
+        return { success: false, error: 'User not found or has no data' };
+      }
+
+      // Parse user data
+      let usrData = JSON.parse(user.usrData);
+      const currentPlugins = usrData.plugins ? usrData.plugins.split(',').map((p: string) => p.trim()).filter(Boolean) : [];
+
+      if (currentPlugins.length === 0) {
+        return { success: true, removed: 0 };
+      }
+
+      // Get all available plugins
+      const allPlugins = await ctx.db.query("plugins").collect();
+      const availablePluginNames = new Set(allPlugins.map((p: any) => p.name));
+
+      // Filter out non-existent plugins
+      const validPlugins = currentPlugins.filter((pluginName: string) => availablePluginNames.has(pluginName));
+      const removed = currentPlugins.length - validPlugins.length;
+
+      if (removed > 0) {
+        // Update user's plugin list
+        usrData.plugins = validPlugins.join(',');
+        await ctx.db.patch(args.userId as any, {
+          usrData: JSON.stringify(usrData)
+        });
+        console.log(`Removed ${removed} non-existent plugins from user ${args.userId}`);
+      }
+
+      return { success: true, removed, remainingPlugins: validPlugins };
+    } catch (error) {
+      console.error(`Failed to remove non-existent plugins:`, error);
+      return { success: false, error: String(error) };
+    }
+  },
+});
+
+/**
+ * Sync plugin endpoints from manifests
+ * This action reads each plugin's manifest and updates apiEndpoints in the database
+ */
+export const syncPluginEndpoints = action({
+  args: {},
+  handler: async (ctx) => {
+    try {
+      const plugins = await ctx.runQuery((internal as any).context.getAllPlugins);
+      let updated = 0;
+      let skipped = 0;
+
+      for (const plugin of plugins) {
+        try {
+          // Get manifest content
+          const manifestUrl = await ctx.storage.getUrl(plugin.manifestFileId);
+          if (!manifestUrl) {
+            console.warn(`No manifest URL for plugin: ${plugin.name}`);
+            skipped++;
+            continue;
+          }
+
+          const manifestResponse = await fetch(manifestUrl);
+          const manifestContent = await manifestResponse.text();
+          const manifest = JSON.parse(manifestContent);
+          const apiEndpoints = manifest.apiEndpoints || [];
+
+          // Check if endpoints need updating
+          const currentEndpoints = plugin.apiEndpoints || [];
+          if (JSON.stringify(currentEndpoints.sort()) === JSON.stringify(apiEndpoints.sort())) {
+            console.log(`Plugin ${plugin.name} endpoints already up to date`);
+            skipped++;
+            continue;
+          }
+
+          // Update plugin with endpoints
+          await ctx.runMutation((internal as any).context.updatePlugin, {
+            pluginId: plugin._id,
+            author: plugin.author,
+            version: plugin.version,
+            description: plugin.description,
+            uploadDate: plugin.uploadDate,
+            apiEndpoints,
+          });
+
+          console.log(`Updated ${plugin.name} with ${apiEndpoints.length} endpoints`);
+          updated++;
+        } catch (error) {
+          console.error(`Failed to sync endpoints for ${plugin.name}:`, error);
+          skipped++;
+        }
+      }
+
+      return { 
+        success: true, 
+        updated, 
+        skipped, 
+        total: plugins.length,
+        message: `Synced ${updated} plugins, skipped ${skipped}` 
+      };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: String(error),
+        message: 'Failed to sync plugin endpoints'
+      };
+    }
   },
 });

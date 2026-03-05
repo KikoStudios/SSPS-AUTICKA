@@ -1,0 +1,14 @@
+{
+  "name": "test-plugin-beta",
+  "displayName": "Test Plugin Beta",
+  "version": "1.0.0",
+  "author": "System Test",
+  "description": "Advanced test plugin for Fiber Framework - Tests inter-plugin communication, shared data, real-time updates, and HeroUI components",
+  "requiredRoles": [],
+  "apiEndpoints": [
+    "getBetaStatus",
+    "syncWithAlpha",
+    "testRealtimeUpdate",
+    "testAdvancedQuery"
+  ]
+}

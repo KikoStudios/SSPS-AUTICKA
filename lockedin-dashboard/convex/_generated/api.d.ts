@@ -25,6 +25,8 @@ import type * as http from "../http.js";
 import type * as iot from "../iot.js";
 import type * as migration from "../migration.js";
 import type * as permissions from "../permissions.js";
+import type * as pluginApi from "../pluginApi.js";
+import type * as pluginFramework from "../pluginFramework.js";
 import type * as publicApi from "../publicApi.js";
 import type * as securedApi from "../securedApi.js";
 import type * as securedSpaces from "../securedSpaces.js";
@@ -53,6 +55,8 @@ declare const fullApi: ApiFromModules<{
   iot: typeof iot;
   migration: typeof migration;
   permissions: typeof permissions;
+  pluginApi: typeof pluginApi;
+  pluginFramework: typeof pluginFramework;
   publicApi: typeof publicApi;
   securedApi: typeof securedApi;
   securedSpaces: typeof securedSpaces;
