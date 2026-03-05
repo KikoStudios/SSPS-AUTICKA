@@ -1,0 +1,16 @@
+{
+  "name": "test-plugin-alpha",
+  "displayName": "Test Plugin Alpha",
+  "version": "1.0.0",
+  "author": "System Test",
+  "description": "Comprehensive test plugin for Fiber Framework - Tests database operations, file management, API endpoints, and role-based permissions",
+  "requiredRoles": [],
+  "apiEndpoints": [
+    "testWrite",
+    "testRead",
+    "testDelete",
+    "testFileUpload",
+    "testRoleCheck",
+    "testBulkOperation"
+  ]
+}

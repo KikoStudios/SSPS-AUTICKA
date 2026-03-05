@@ -1,0 +1,14 @@
+{
+  "name": "notes",
+  "version": "1.0.0",
+  "author": "Plugin Framework Demo",
+  "description": "A notes plugin demonstrating the framework with data storage, role-based access, and API endpoints",
+  "main": "core-notes.js",
+  "iconLight": "icon-light-notes.svg",
+  "iconDark": "icon-dark-notes.svg",
+  "apiEndpoints": ["addNote", "getNotes", "deleteNote"],
+  "permissions": ["read", "write"],
+  "tags": ["productivity", "notes", "demo"],
+  "created": "2024-01-01",
+  "updated": "2024-01-01"
+}

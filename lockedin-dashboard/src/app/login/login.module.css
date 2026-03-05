@@ -1,14 +1,24 @@
 /* Login Page Styles */
+@font-face {
+  font-family: 'SF Pro';
+  src: url('/media/SF-Pro.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 .loginContainer {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #0F2044;
-  font-family: 'JetBrains Mono', monospace;
+  /* white -> blue flowing gradient */
+  background: linear-gradient(330deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 247, 255, 0.85) 20%, rgba(15, 32, 68, 0.95) 75%);
+  font-family: 'SF Pro', -apple-system, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
   position: relative;
   padding: 0;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 /* SSPS Logo in top left corner */
@@ -22,16 +32,13 @@
 .sspsLogo {
   height: 60px;
   width: auto;
-  filter: brightness(0) invert(1); /* Make it white */
+  filter: brightness(0) invert(1);
 }
 
 /* Main Login Card */
 .loginCard {
-  background-color: #FFFFFF;
-  border: 12px solid #DC362E;
-  border-radius: 32px;
+  border-radius: 23px;
   padding: 1rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   max-width: 360px;
   width: 100%;
   text-align: center;
@@ -46,8 +53,89 @@
 }
 
 .lockedinLogo {
-  height: 64px;
+  height: 250px;
   width: auto;
+  position: relative;
+  transform: scale(6.5);
+  transform-origin: center 60%;
+  /* Adjust origin to keep it close to fields */
+  max-width: none;
+  pointer-events: none;
+  /* Let clicks pass through the glow */
+  margin-top: 0;
+  margin-bottom: -150px;
+  /* Pull the form up closer to the visual center */
+}
+
+/* Blurred decorative blobs */
+.loginContainer::before,
+.loginContainer::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  transform: translate3d(0, 0, 0);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+/* Big blue blob (bottom-left) */
+.loginContainer::before {
+  width: 800px;
+  height: 800px;
+  left: -20%;
+  bottom: -20%;
+  background: radial-gradient(circle at 30% 30%, rgba(92, 149, 255, 0.95) 0%, rgba(31, 93, 255, 0.6) 40%, rgba(15, 32, 68, 0.35) 70%, transparent 75%);
+  opacity: 0.9;
+  z-index: 0;
+  animation: float-slow-1 18s ease-in-out infinite;
+}
+
+/* White / pale blue blob (top-right) with blend to create flowing colors */
+.loginContainer::after {
+  width: 600px;
+  height: 600px;
+  right: -10%;
+  top: -15%;
+  background: radial-gradient(circle at 70% 20%, rgba(255, 255, 255, 0.98) 0%, rgba(220, 242, 255, 0.9) 30%, rgba(140, 190, 255, 0.45) 60%, transparent 70%);
+  mix-blend-mode: screen;
+  opacity: 0.95;
+  z-index: 1;
+  animation: float-slow-2 22s ease-in-out infinite;
+}
+
+/* Ensure card and UI sit above decorative blobs */
+.loginCard {
+  position: relative;
+  z-index: 6;
+}
+
+@keyframes float-slow-1 {
+  0% {
+    transform: translate3d(0, 0, 0) translateY(0px) translateX(0px);
+  }
+
+  50% {
+    transform: translate3d(0, 0, 0) translateY(-30px) translateX(20px);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0) translateY(0px) translateX(0px);
+  }
+}
+
+@keyframes float-slow-2 {
+  0% {
+    transform: translate3d(0, 0, 0) translateY(0px) translateX(0px);
+  }
+
+  50% {
+    transform: translate3d(0, 0, 0) translateY(20px) translateX(-25px);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0) translateY(0px) translateX(0px);
+  }
 }
 
 /* Form */
@@ -66,7 +154,7 @@
   font-size: 0.9rem;
   font-weight: 500;
   border: 1px solid #FECACA;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'SF Pro', -apple-system, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
 }
 
 /* Input Groups */
@@ -78,11 +166,10 @@
   width: 100%;
   padding: 0.8rem 1rem;
   background-color: #FFFFFF;
-  border: 2px solid #0F2044;
-  border-radius: 12px;
+  border-radius: 16px;
   color: #0F2044;
   font-size: 0.9rem;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'SF Pro', -apple-system, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
   transition: all 0.3s ease;
   box-sizing: border-box;
 }
@@ -119,7 +206,7 @@
   letter-spacing: 1px;
   cursor: pointer;
   transition: all 0.3s ease;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'SF Pro', -apple-system, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
   margin-top: 0.4rem;
 }
 
@@ -150,19 +237,21 @@
   .loginContainer {
     padding: 0;
   }
-  
+
   .loginCard {
     padding: 1.6rem;
     max-width: 100%;
     margin: 2rem 1rem;
   }
-  
+
   .sspsLogo {
     height: 50px;
   }
-  
+
   .lockedinLogo {
-    height: 48px;
+    height: 140px;
+    margin-top: -40px;
+    max-width: 320px;
   }
 }
 
@@ -171,11 +260,11 @@
     padding: 1.2rem;
     margin: 1rem 0.5rem;
   }
-  
+
   .input {
     padding: 0.7rem 0.8rem;
   }
-  
+
   .loginButton {
     padding: 0.7rem 0.8rem;
   }

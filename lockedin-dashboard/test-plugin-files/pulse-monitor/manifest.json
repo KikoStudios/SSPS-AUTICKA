@@ -1,0 +1,30 @@
+{
+  "name": "pulse-monitor",
+  "version": "2.0.0",
+  "title": "Pulse Monitor",
+  "description": "📡 Real-time monitoring and remote control dashboard for the Reactor Core plugin. Displays live metrics and sends command signals.",
+  "icon": "📡",
+  "author": "Dashboard Dev",
+  "category": "monitoring",
+  "tags": ["monitoring", "control", "real-time", "reactor", "dashboard"],
+  "apiEndpoints": [
+    "monitor_status",
+    "send_command",
+    "get_activity_log"
+  ],
+  "permissions": ["data-access", "external-communication", "real-time-updates"],
+  "features": {
+    "real-time": true,
+    "interactive": true,
+    "monitoring": true,
+    "remote-control": true,
+    "listens-to": ["reactor_status", "reactor_command"]
+  },
+  "dependencies": [
+    "reactor-core"
+  ],
+  "changelog": [
+    "v2.0.0: Real-time reactor monitoring with remote control interface",
+    "v1.0.0: Initial release"
+  ]
+}

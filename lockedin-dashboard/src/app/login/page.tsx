@@ -1,29 +1,59 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAction } from 'convex/react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuthActions } from '@convex-dev/auth/react';
+import { useConvexAuth, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { useAuth } from '../auth-context';
 import styles from './login.module.css';
+import Image from 'next/image';
+import { Input, Spacer } from '@heroui/react';
+import { PrimaryButton, SecondaryButton, AlertBox, FormContainer } from '@/components/heroui-components';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  
-  const router = useRouter();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const loginUser = useAction((api.context as any).loginUserAction);
-  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
 
-  // Redirect if already authenticated
+  const loginInputClassNames = {
+    inputWrapper:
+      'bg-default-100/85 border-default-300/80 data-[hover=true]:bg-default-100 data-[focus=true]:bg-default-100',
+    input: 'text-foreground placeholder:text-default-500',
+  };
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { signIn } = useAuthActions();
+  const { isAuthenticated } = useConvexAuth();
+
+  // Check if any users exist - if not, allow sign-up for first admin
+  const hasUsers = useQuery(api.publicApi.hasAnyUsers);
+  const canSignUp = hasUsers === false; // explicitly false means we know there are 0 users
+
+  // Auto-switch to signUp mode if no users exist
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
+    if (canSignUp) {
+      setMode('signUp');
+    }
+  }, [canSignUp]);
+
+  // Check for error parameters in URL (e.g., redirected from dashboard due to pending approval)
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam === 'pending_approval') {
+      setError('❌ Váš účet čeká na schválení správcem. Kontaktujte správce.');
+    }
+  }, [searchParams]);
+
+  // Redirect to dashboard if authenticated
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      console.log('Authenticated! Redirecting to dashboard...');
       router.push('/dashboard');
     }
-  }, [isAuthenticated, authLoading, router]);
+  }, [isAuthenticated, isLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,87 +61,88 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const result = await loginUser({
-        username,
-        password,
-      });
+      // Create FormData to pass to Convex Auth
+      // Password provider expects 'email' field, not 'username'
+      const formData = new FormData();
+      formData.append('email', username); // Send as email field
+      formData.append('password', password);
+      formData.append('flow', mode);
 
-      if (result.success) {
-        // Login successful
-        console.log('Login successful:', result);
-        
-        // Parse user data
-        let userData = {};
-        try {
-          userData = JSON.parse(result.usrData || '{}');
-        } catch (error) {
-          console.error('Error parsing user data:', error);
-          userData = { role: 'user' };
-        }
-        
-        // Store user data in auth context
-        login(username, userData, result.userId);
-        
-        // Redirect to dashboard
-        router.push('/dashboard');
-      } else {
-        setError('Invalid username or password');
+      console.log('Attempting sign in...', { mode, username });
+      await signIn('password', formData);
+      console.log('Sign in successful!');
+
+      // NEW: Check if account is approved (if just signed up)
+      if (mode === 'signUp') {
+        // Account was just created - may need approval
+        // Show success message
+        setError('✅ Účet vytvořen! Čeká na schválení správcem.');
+        setIsLoading(false);
+        // Optionally redirect back to sign in after delay
+        setTimeout(() => {
+          setMode('signIn');
+          setError('');
+        }, 3000);
+        return;
       }
+
+      // For signIn mode, redirect to dashboard
+      // The dashboard will verify authentication
+      console.log('Redirecting to dashboard...');
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 500); // Small delay to let auth state settle
+      
     } catch (err) {
       console.error('Login error:', err);
-      setError('An error occurred during login. Please try again.');
-    } finally {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+
+      // Check if account already exists
+      if (errorMessage.includes('already exists')) {
+        setError('Účet již existuje! Přihlašování...');
+        // Auto-login with same credentials
+        setTimeout(async () => {
+          try {
+            const loginFormData = new FormData();
+            loginFormData.append('email', username);
+            loginFormData.append('password', password);
+            loginFormData.append('flow', 'signIn');
+            
+            console.log('Auto-logging in with existing account...');
+            await signIn('password', loginFormData);
+            console.log('Auto-login successful!');
+            
+            setTimeout(() => {
+              router.push('/dashboard');
+            }, 500);
+          } catch (loginErr) {
+            console.error('Auto-login failed:', loginErr);
+            setError('Neplatné uživatelské jméno nebo heslo. Zkuste to znovu.');
+            setIsLoading(false);
+          }
+        }, 1000);
+      } else if (mode === 'signUp') {
+        setError('Chyba při vytváření účtu. Zkuste to znovu.');
+      } else if (errorMessage.includes('pending approval') || errorMessage.includes('not approved')) {
+        setError('Váš účet čeká na schválení správcem.');
+      } else {
+        setError('Neplatné uživatelské jméno nebo heslo. Zkuste to znovu.');
+      }
       setIsLoading(false);
     }
   };
-
-  // Show loading screen while checking authentication
-  if (authLoading) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '18px',
-        color: '#666'
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ 
-            width: '40px', 
-            height: '40px', 
-            border: '4px solid #f3f3f3',
-            borderTop: '4px solid #007bff',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            margin: '0 auto 20px'
-          }}></div>
-          <p>Checking authentication...</p>
-        </div>
-        <style jsx>{`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
-      </div>
-    );
-  }
-
-  // Don't render login form if already authenticated (will redirect)
-  if (isAuthenticated) {
-    return null;
-  }
 
   return (
     <div className={styles.loginContainer}>
       {/* SSPS Logo in top left */}
       <div className={styles.logoContainer}>
-        <img 
-          src="/media/logo_ssps.svg" 
-          alt="SSPS Logo" 
+        <Image
+          src="/media/logo_ssps.svg"
+          alt="SSPS Logo"
+          width={318}
+          height={111}
           className={styles.sspsLogo}
+          priority
         />
       </div>
 
@@ -119,61 +150,98 @@ export default function LoginPage() {
       <div className={styles.loginCard}>
         {/* LockedIN Logo */}
         <div className={styles.lockedinLogoContainer}>
-          <img 
-            src="/media/LOGO.svg" 
-            alt="LockedIN Logo" 
+          <Image
+            src="/media/logo-v2.svg"
+            alt="LockedIN Logo"
+            width={718}
+            height={521}
             className={styles.lockedinLogo}
+            priority
           />
         </div>
-        <form className={styles.form} onSubmit={handleSubmit}>
-          {/* Error Message */}
+        <FormContainer onSubmit={handleSubmit}>
+          {/* Error/Success Message */}
           {error && (
-            <div className={styles.errorMessage}>
-              {error}
-            </div>
+            <>
+              <AlertBox 
+                type={error.includes('✅') ? 'success' : 'error'} 
+                message={error.replace('✅ ', '').replace('❌ ', '')} 
+              />
+              <Spacer y={2} />
+            </>
           )}
 
           {/* Username Input */}
-          <div className={styles.inputGroup}>
-            <input
-              id="username"
-              name="username"
-              type="text"
-              autoComplete="username"
-              required
-              className={styles.input}
-              placeholder="uživatelské jméno"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              disabled={isLoading}
-            />
-          </div>
+          <Input
+            id="username"
+            name="username"
+            placeholder="uživatelské jméno"
+            type="text"
+            variant="bordered"
+            size="lg"
+            radius="md"
+            fullWidth
+            classNames={loginInputClassNames}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            disabled={isLoading}
+            required
+            autoComplete="username"
+          />
 
           {/* Password Input */}
-          <div className={styles.inputGroup}>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              className={styles.input}
-              placeholder="heslo"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading}
-            />
-          </div>
+          <Input
+            id="password"
+            name="password"
+            placeholder="heslo"
+            type="password"
+            variant="bordered"
+            size="lg"
+            radius="md"
+            fullWidth
+            classNames={loginInputClassNames}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={isLoading}
+            required
+            autoComplete="current-password"
+          />
 
           {/* Login Button */}
-          <button
+          <PrimaryButton
             type="submit"
-            className={styles.loginButton}
             disabled={isLoading}
+            className="mt-4"
           >
-            {isLoading ? 'LOGGING IN...' : 'LOGIN'}
-          </button>
-        </form>
+            {isLoading
+              ? (mode === 'signUp' ? 'CREATING ACCOUNT...' : 'LOGGING IN...')
+              : (mode === 'signUp' ? 'CREATE ACCOUNT' : 'LOGIN')
+            }
+          </PrimaryButton>
+
+          {/* Toggle between Sign In and Sign Up */}
+          <SecondaryButton
+            type="button"
+            onClick={() => setMode(mode === 'signIn' ? 'signUp' : 'signIn')}
+            className="mt-2 w-full"
+            variant="light"
+          >
+            {mode === 'signIn'
+              ? 'Need to create an account? Sign up'
+              : 'Already have an account? Sign in'
+            }
+          </SecondaryButton>
+        </FormContainer>
+
+        {/* Verification Info - Only show during signup */}
+        {mode === 'signUp' && (
+          <div className="mt-4">
+            <AlertBox 
+              type="info" 
+              message="You must be verified by an administrator before you can log in. New accounts require approval." 
+            />
+          </div>
+        )}
       </div>
     </div>
   );
