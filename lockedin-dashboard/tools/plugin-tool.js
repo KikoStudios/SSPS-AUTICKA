@@ -17,7 +17,7 @@ function getEnvConfig() {
         convexUrl: process.env.NEXT_PUBLIC_CONVEX_URL || 'https://modest-pig-521.convex.cloud'
     };
 
-    const envLocalPath = path.join(__dirname, '..', '.env.local');
+    const envLocalPath = path.join(__dirname, '.env.local');
     if (fs.existsSync(envLocalPath)) {
         const envContent = fs.readFileSync(envLocalPath, 'utf8');
         const match = envContent.match(/^NEXT_PUBLIC_CONVEX_URL=(.+)$/m);
@@ -67,7 +67,7 @@ const commands = {
                 
                 let manifest = null;
                 for (const loc of manifestLocations) {
-                    const fullPath = path.join(__dirname, '..', loc);
+                    const fullPath = path.join(__dirname, loc);
                     if (fs.existsSync(fullPath)) {
                         manifest = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
                         break;

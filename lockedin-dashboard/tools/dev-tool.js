@@ -20,7 +20,7 @@ function getEnvConfig() {
         convexUrl: process.env.NEXT_PUBLIC_CONVEX_URL || 'https://modest-pig-521.convex.cloud'
     };
 
-    const envLocalPath = path.join(__dirname, '..', '.env.local');
+    const envLocalPath = path.join(__dirname, '.env.local');
     if (fs.existsSync(envLocalPath)) {
         const envContent = fs.readFileSync(envLocalPath, 'utf8');
         const match = envContent.match(/^NEXT_PUBLIC_CONVEX_URL=(.+)$/m);
@@ -133,15 +133,15 @@ const commands = {
             // Logic from repair_env.js (simplified)
             try {
                 let currentEnv = '';
-                if (fs.existsSync(path.join(__dirname, '..', '.env.local'))) {
-                    currentEnv = fs.readFileSync(path.join(__dirname, '..', '.env.local'), 'utf8');
+                if (fs.existsSync('.env.local')) {
+                    currentEnv = fs.readFileSync('.env.local', 'utf8');
                 }
                 
                 if (!currentEnv.includes('JWT_PRIVATE_KEY')) {
                     console.log('🔑 Generating new JWT keys...');
                     const { privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048, privateKeyEncoding: { type: 'pkcs8', format: 'pem' } });
                     const escapedKey = privateKey.replace(/\n/g, '\\n');
-                    fs.appendFileSync(path.join(__dirname, '..', '.env.local'), `\nJWT_PRIVATE_KEY="${escapedKey}"\n`);
+                    fs.appendFileSync('.env.local', `\nJWT_PRIVATE_KEY="${escapedKey}"\n`);
                     console.log('✅ Added JWT_PRIVATE_KEY to .env.local');
                 } else {
                     console.log('✅ JWT_PRIVATE_KEY already exists.');
@@ -178,8 +178,7 @@ const commands = {
         fn: async () => {
             console.log('🔍 Checking environment...');
             const required = ['NEXT_PUBLIC_CONVEX_URL', 'JWT_PRIVATE_KEY'];
-            const envLocalPath = path.join(__dirname, '..', '.env.local');
-            const envLocal = fs.existsSync(envLocalPath) ? fs.readFileSync(envLocalPath, 'utf8') : '';
+            const envLocal = fs.existsSync('.env.local') ? fs.readFileSync('.env.local', 'utf8') : '';
             
             required.forEach(v => {
                 const exists = envLocal.includes(v) || process.env[v];

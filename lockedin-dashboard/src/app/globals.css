@@ -1,7 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
 @config "../../tailwind.config.ts";
 @source "../../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}";
-@import "tailwindcss";
 
 @font-face {
   font-family: 'SF Pro';
@@ -81,7 +80,7 @@ body.light-mode {
   --color-dark-blue: var(--dark-blue);
   --color-grey: var(--grey);
   --color-red-pink: var(--red-pink);
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-mono: var(--font-jetbrains-mono), monospace;
 }
 
 body {
